@@ -5,11 +5,9 @@ const HeroSection = React.lazy(() => import("./hero-section"))
 
 export default function HeroDynamic(props) {
   return (
-    <Suspense 
+    <Suspense
       fallback={
-        <div className="h-full w-full flex items-center justify-center bg-background">
-          <div className="animate-pulse">Loading Map...</div>
-        </div>
+        <div className="h-full w-full bg-background" />
       }
     >
       <HeroSection {...props} />

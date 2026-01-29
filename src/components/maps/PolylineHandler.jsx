@@ -13,8 +13,12 @@ let snakeAnimError = null
 
 // Load SnakeAnim plugin
 const loadSnakeAnimPlugin = () => {
-  if (typeof window === "undefined") return Promise.reject("Not in browser")
+  if (typeof window === "undefined") {
+    return Promise.reject("Not in browser")
+  }
+
   if (snakeAnimLoaded) return Promise.resolve()
+
   if (snakeAnimLoading) {
     return new Promise((resolve, reject) => {
       const check = setInterval(() => {
@@ -33,29 +37,24 @@ const loadSnakeAnimPlugin = () => {
   snakeAnimLoading = true
   console.log("[SnakeAnim] Starting to load plugin...")
 
-  return new Promise((resolve, reject) => {
-    if (typeof window.L === "undefined") {
-      snakeAnimError = new Error("Leaflet (L) not available")
-      snakeAnimLoading = false
-      reject(snakeAnimError)
-      return
-    }
-
+  return new Promise(async (resolve, reject) => {
     try {
-      require("@/utils/leaflet/L.Polyline.SnakeAnim.js")
+      if (!window.L) {
+        throw new Error("Leaflet (L) not available")
+      }
 
-      if (window.L && window.L.SnakeRegistry) {
+      await import("@/utils/leaflet/L.Polyline.SnakeAnim.js")
+
+      if (window.L?.SnakeRegistry) {
         snakeAnimLoaded = true
         snakeAnimLoading = false
-        console.log("[SnakeAnim] Plugin loaded successfully")
         resolve()
       } else {
-        throw new Error("Plugin loaded but SnakeRegistry not found")
+        throw new Error("SnakeRegistry not found after import")
       }
     } catch (e) {
       snakeAnimError = e
       snakeAnimLoading = false
-      console.error("[SnakeAnim] Failed to load plugin:", e)
       reject(e)
     }
   })

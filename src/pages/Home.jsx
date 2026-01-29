@@ -25,6 +25,7 @@ import {
 import { useUser } from "@/contexts/UserContext"
 import HeroDynamic from "@/components/maps/hero-section-dynamic"
 import "leaflet/dist/leaflet.css"
+import { request } from "@/utils/request"
 
 const features = [
   {
@@ -160,14 +161,12 @@ export default function Home() {
         for (const routeDef of generateRoutes()) {
           try {
             const { number, dir } = routeDef.apiParams
-            const res = await fetch(`/api/route?number=${number}&dir=${dir}`)
 
-            if (!res.ok) {
-              console.error(`Failed to fetch ${routeDef.name}`)
-              continue
-            }
+            const geojsonData = await request({
+              url: `/api/route?number=${number}&dir=${dir}`,
+              method: 'GET'
+            })
 
-            const geojsonData = await res.json()
             fetchedRoutes.push({
               id: routeDef.id,
               name: routeDef.name,
@@ -239,17 +238,12 @@ export default function Home() {
               `,
               transformOrigin: "center center",
             }}>
-            {loading ? (
-              <div className="flex items-center justify-center h-full bg-background">
-              </div>
-            ) : (
-              <HeroDynamic
-                center={[-6.175389, 106.827139]}
-                zoom={13}
-                routes={routes}
-                className="h-full w-full bg-background"
-              />
-            )}
+            <HeroDynamic
+              center={[-6.175389, 106.827139]}
+              zoom={13}
+              routes={routes}
+              className="h-full w-full bg-background"
+            />
           </div>
 
           {/* Gradient Overlay */}

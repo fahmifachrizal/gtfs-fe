@@ -47,7 +47,9 @@ export default function MapHero({
   const currentTheme = mounted ? resolvedTheme || theme : "light"
 
   return (
-    <div className={className}>
+    <div
+      className={`${className} transition-opacity duration-1000 ${mounted ? 'opacity-100' : 'opacity-0'}`}
+    >
       <MapContainer
         center={center}
         zoom={zoom}

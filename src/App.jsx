@@ -4,7 +4,9 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import { ThemeProvider } from "next-themes";
 import { UserProvider } from './contexts/UserContext';
-import RootLayout from './layouts/RootLayout';
+import HomeLayout from './layouts/HomeLayout';
+import EditorLayout from './layouts/EditorLayout';
+import Editor from './pages/Editor';
 // import { Toaster } from './components/ui/toaster';
 
 function App() {
@@ -13,10 +15,17 @@ function App() {
       <UserProvider>
         <Router>
           <Routes>
-            <Route element={<RootLayout />}>
+            {/* Public Layout */}
+            <Route element={<HomeLayout />}>
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+            </Route>
+
+            {/* Editor Layout (Protected) */}
+            <Route path="/editor" element={<EditorLayout />}>
+              <Route index element={<Editor />} />
+              {/* Add sub-routes for editor here if needed */}
             </Route>
           </Routes>
         </Router>

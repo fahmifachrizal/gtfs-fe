@@ -1,5 +1,14 @@
 // utils/leaflet/L.Polyline.SnakeAnim.js
 // Enhanced version with CONSTANT GEOGRAPHIC SPEED regardless of zoom level
+import L from "leaflet"
+if (typeof window === "undefined" || !L) {
+  throw new Error("[SnakeAnim] Leaflet not available")
+}
+
+// Expose Leaflet on window (important for other plugins / debug)
+if (!window.L) {
+  window.L = L
+}
 
 // Global registry for tracking instances
 if (!window.L.SnakeRegistry) {
