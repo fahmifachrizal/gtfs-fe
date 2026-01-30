@@ -292,7 +292,7 @@ export default function Home() {
                 size="lg"
                 asChild
                 className="text-lg px-8 py-6">
-                <Link to="/projects">
+                <Link to="/editor">
                   <FolderPlus className="mr-2 h-5 w-5" />
                   View Projects
                 </Link>
@@ -302,12 +302,13 @@ export default function Home() {
         </div>
 
         {/* Scroll Indicator */}
+        <div className="absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-border to-transparent" />
         <div
           className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10"
           style={{
             opacity: contentOpacity,
           }}>
-          <div className="flex flex-col items-center text-white/70">
+          <div className="flex flex-col items-center text-foreground/70">
             <span className="text-sm text-foreground mb-2">
               Scroll to explore
             </span>
@@ -404,7 +405,7 @@ export default function Home() {
 
           <Card className="p-8 hover:shadow-lg transition-shadow duration-300">
             <div className="flex items-start space-x-4">
-              <div className="w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+              <div className="w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
                 <BookOpen className="h-6 w-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
@@ -453,7 +454,7 @@ export default function Home() {
               size="lg"
               asChild
               className="text-lg px-8 py-6 hover:scale-105 transition-transform duration-200">
-              <Link to="/projects">
+              <Link to="/editor">
                 <FolderPlus className="mr-2 h-5 w-5" />
                 Browse Projects
               </Link>

@@ -8,10 +8,14 @@
  * @returns {Promise<any>} Response data
  */
 export const request = async ({ url, method = 'GET', headersObject = {}, bodyObject = null }) => {
+    // Get token from localStorage
+    const token = localStorage.getItem('auth_token');
+
     const options = {
         method,
         headers: {
             'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` }),
             ...headersObject,
         },
     };

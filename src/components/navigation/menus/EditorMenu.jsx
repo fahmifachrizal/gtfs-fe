@@ -111,7 +111,7 @@ export function EditorMenu() {
   }
 
   return (
-    <nav className="border-t border-border/40 bg-gradient-to-r from-background/50 to-background/30 backdrop-blur-sm">
+    <nav className="border-t border-border/40 bg-linear-to-r from-background/50 to-background/30 backdrop-blur-sm">
       <div className="px-6 py-3">
         <div className="flex items-center space-x-2 overflow-x-auto scrollbar-hide">
           {editorPages.map((page, index) => {

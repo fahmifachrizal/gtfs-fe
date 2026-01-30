@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { useLocation, Outlet } from "react-router-dom"
+import { useLocation, Outlet, Link } from "react-router-dom"
 // import { AuthGuard } from "@/components/auth/AuthGuard" // Ensure this exists or implement simple check
 import { EditorProvider, useEditorContext } from "@/contexts/EditorContext"
 import { useUser } from "@/contexts/UserContext"
@@ -9,6 +9,7 @@ import {
     UserPreferences,
     EditorPreferences,
 } from "@/components/navigation"
+import { Button } from "@/components/ui/button"
 import LeafletDynamic from "@/components/maps/leaflet-dynamic"
 import "leaflet/dist/leaflet.css"
 
@@ -84,7 +85,7 @@ function EditorLayoutContent({ children }) {
 }
 
 function EditorLayoutInner({ children, onExport, onReset, loading }) {
-    const { currentProject } = useUser()
+    const { user, currentProject } = useUser()
     const { center, mapData, generateAnimationRoutes } = useEditorContext()
 
     // Animation event handlers (optional - for debugging/monitoring)
@@ -110,7 +111,7 @@ function EditorLayoutInner({ children, onExport, onReset, loading }) {
     return (
         <div className="h-screen flex flex-col text-foreground bg-background">
             {/* Compact Header with Navigation */}
-            <div className="w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
+            <div className="w-full border-b border-border/40 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 z-10">
                 {/* Top Row - Brand, Project, Actions, User */}
                 <div className="flex items-center justify-between px-4 py-2">
                     {/* Left side - Brand and Project */}
@@ -133,7 +134,13 @@ function EditorLayoutInner({ children, onExport, onReset, loading }) {
                             onReset={onReset}
                             loading={loading}
                         />
-                        <UserPreferences />
+                        {user ? (
+                            <UserPreferences />
+                        ) : (
+                            <Button variant="ghost" size="sm" asChild>
+                                <Link to="/login">Log in</Link>
+                            </Button>
+                        )}
                     </div>
                 </div>
 

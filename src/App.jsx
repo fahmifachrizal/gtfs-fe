@@ -6,8 +6,12 @@ import { ThemeProvider } from "next-themes";
 import { UserProvider } from './contexts/UserContext';
 import HomeLayout from './layouts/HomeLayout';
 import EditorLayout from './layouts/EditorLayout';
-import Editor from './pages/Editor';
-// import { Toaster } from './components/ui/toaster';
+import Editor from './pages/Editor'; // This is the Projects List
+import EditorWelcome from './pages/editor/EditorWelcome'; // New component
+import StopsPage from './pages/editor/StopsPage';
+import RoutesPage from './pages/editor/RoutesPage';
+import PlaceholderPage from './pages/editor/PlaceholderPage';
+import { Toaster } from './components/ui/sonner';
 
 function App() {
   return (
@@ -20,16 +24,20 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/projects" element={<Editor />} />
             </Route>
 
-            {/* Editor Layout (Protected) */}
+            {/* Editor Layout - Context Based Routing */}
             <Route path="/editor" element={<EditorLayout />}>
-              <Route index element={<Editor />} />
-              {/* Add sub-routes for editor here if needed */}
+                <Route index element={<EditorWelcome />} />
+                <Route path="stops" element={<StopsPage />} />
+                <Route path="routes" element={<RoutesPage />} />
+                <Route path="*" element={<PlaceholderPage />} />
             </Route>
+
           </Routes>
         </Router>
-        {/* <Toaster /> */}
+        <Toaster />
       </UserProvider>
     </ThemeProvider>
   );

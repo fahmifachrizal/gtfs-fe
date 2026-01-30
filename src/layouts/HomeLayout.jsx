@@ -8,21 +8,17 @@ import { ThemeToggle } from "@/components/ThemeToggle"
 export function NavigationHeader() {
     const { user } = useUser()
     const location = useLocation()
-    const [isVisible, setIsVisible] = useState(false)
+    const isHomePage = location.pathname === "/"
+    const [isScrolled, setIsScrolled] = useState(false)
 
     useEffect(() => {
-        const toggleVisibility = () => {
-            if (window.scrollY > (window.innerHeight * 0.9)) {
-                setIsVisible(true)
-            } else {
-                setIsVisible(false)
-            }
+        const handleScroll = () => {
+            setIsScrolled(window.scrollY > 50)
         }
 
-        window.addEventListener("scroll", toggleVisibility)
-        return () => {
-            window.removeEventListener("scroll", toggleVisibility)
-        }
+        window.addEventListener("scroll", handleScroll)
+        handleScroll() // Check initial state
+        return () => window.removeEventListener("scroll", handleScroll)
     }, [])
 
     // Don't show navigation on editor pages (they have their own header)
@@ -33,7 +29,11 @@ export function NavigationHeader() {
     }
 
     return (
-        <header className={`fixed top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all duration-300 ease-in-out ${isVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"}`}>
+        <header className={`fixed top-0 z-50 w-full transition-all duration-300 ease-in-out ${
+            !isHomePage || isScrolled 
+                ? "bg-background/95 backdrop-blur border-b border-border/40" 
+                : "bg-transparent border-transparent"
+        }`}>
             <div className="container flex h-14 max-w-7xl items-center justify-between mx-auto px-4 py-2">
                 {/* Left side - Brand and Navigation */}
                 <div className="flex items-center space-x-6">

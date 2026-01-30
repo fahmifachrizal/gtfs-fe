@@ -1,6 +1,6 @@
 import React from "react"
 import { Outlet } from "react-router-dom"
-// import { Toaster } from "@/components/ui/toaster"
+import { Toaster } from "@/components/ui/sonner"
 
 export default function RootLayout() {
   return (
@@ -8,7 +8,7 @@ export default function RootLayout() {
       <main className="relative flex min-h-screen flex-col">
         <Outlet />
       </main>
-      {/* <Toaster /> */}
+      <Toaster />
     </div>
   )
 }
