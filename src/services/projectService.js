@@ -1,4 +1,5 @@
 import { request } from "@/utils/request";
+import { getApiUrl } from "@/config/api";
 
 const API_BASE = '/api/projects';
 
@@ -76,7 +77,8 @@ export const projectService = {
         // We need to handle this manually because our request util might try to JSON.stringify body
         // and setting Content-Type to multipart/form-data manually lets browser set boundary
         const token = localStorage.getItem('auth_token');
-        const response = await fetch(`${API_BASE}/${id}/import`, {
+        const fullUrl = getApiUrl(`${API_BASE}/${id}/import`);
+        const response = await fetch(fullUrl, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`

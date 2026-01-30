@@ -7,6 +7,17 @@
  * @param {Object} [params.bodyObject=null] - Request body
  * @returns {Promise<any>} Response data
  */
+import { getApiUrl } from "@/config/api";
+
+/**
+ * General purpose request utility
+ * @param {Object} params
+ * @param {string} params.url - The URL to fetch
+ * @param {string} [params.method='GET'] - HTTP method
+ * @param {Object} [params.headersObject={}] - Custom headers
+ * @param {Object} [params.bodyObject=null] - Request body
+ * @returns {Promise<any>} Response data
+ */
 export const request = async ({ url, method = 'GET', headersObject = {}, bodyObject = null }) => {
     // Get token from localStorage
     const token = localStorage.getItem('auth_token');
@@ -24,8 +35,8 @@ export const request = async ({ url, method = 'GET', headersObject = {}, bodyObj
         options.body = JSON.stringify(bodyObject);
     }
 
-    // Handle absolute vs relative URLs if needed, but for now relying on proxy or cors
-    const response = await fetch(url, options);
+    const fullUrl = getApiUrl(url);
+    const response = await fetch(fullUrl, options);
 
     if (!response.ok) {
         const errorBody = await response.text();

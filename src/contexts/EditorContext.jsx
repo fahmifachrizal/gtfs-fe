@@ -2,6 +2,7 @@
 "use client"
 import React, { createContext, useContext, useState, useMemo, useCallback } from "react"
 import { useUser } from "@/contexts/UserContext"
+import { getApiUrl } from "@/config/api"
 
 const EditorContext = createContext()
 
@@ -71,25 +72,35 @@ export function EditorProvider({ children }) {
         ...(search && { search }),
       }).toString()
 
-      const response = await fetch(`/api/gtfs/${type}?${query}`, {
+      const fullUrl = getApiUrl(`/api/gtfs/${type}?${query}`)
+      console.log(`[EditorContext] Fetching ${type}:`, fullUrl);
+
+      const response = await fetch(fullUrl, {
         headers: {
           Authorization: `Bearer ${user.token}`,
           "Content-Type": "application/json",
         },
       })
 
+      console.log(`[EditorContext] Response status: ${response.status}`);
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 
       const data = await response.json()
+      console.log(`[EditorContext] Received data for ${type}:`, data);
 
       if (data.success === false) {
         throw new Error(data.message || `Failed to fetch ${type}`)
       }
 
       let payload = []
-      if (data.data) {
+
+      // Handle spread response (backend services like getStops return { stops: [...], pagination: ... })
+      if (data[type]) {
+        payload = data[type]
+      } else if (data.data) {
         payload = data.data[type] || data.data || []
       } else if (Array.isArray(data)) {
         payload = data
@@ -97,17 +108,18 @@ export function EditorProvider({ children }) {
 
       setGtfsData((prev) => ({ ...prev, [type]: payload }))
 
-      if (data.meta) {
+      const meta = data.meta || data.pagination
+      if (meta) {
         setGtfsMeta((prev) => ({
           ...prev,
           [type]: {
-            page: data.meta.page || page,
-            pageSize: data.meta.pageSize || 10,
-            totalPages: data.meta.totalPages || 1,
-            totalItems: data.meta.totalItems || 0,
-            search: data.meta.search || search,
-            hasNextPage: data.meta.hasNextPage || false,
-            hasPreviousPage: data.meta.hasPreviousPage || false,
+            page: meta.page || page,
+            pageSize: meta.pageSize || meta.limit || 10,
+            totalPages: meta.totalPages || meta.pages || 1,
+            totalItems: meta.totalItems || meta.total || 0,
+            search: meta.search || search,
+            hasNextPage: meta.hasNextPage || (meta.page < (meta.totalPages || meta.pages)),
+            hasPreviousPage: meta.hasPreviousPage || (meta.page > 1),
           },
         }))
       }
@@ -155,6 +167,24 @@ export function EditorProvider({ children }) {
   const clearMap = useCallback(() => {
     setMapData({ type: "FeatureCollection", features: [] })
     setSelectedData(null)
+  }, [])
+
+  // Reset all editor state
+  const resetEditorState = useCallback(() => {
+    setMapData({ type: "FeatureCollection", features: [] })
+    setSelectedData(null)
+    setGtfsData({
+      agency: [],
+      stops: [],
+      routes: [],
+      trips: [],
+      stop_times: [],
+      calendar: [],
+      calendar_dates: [],
+      fare_rules: [],
+      fare_attributes: [],
+      shapes: [],
+    })
   }, [])
 
   // Generate animation routes from mapData
@@ -232,6 +262,7 @@ export function EditorProvider({ children }) {
     handleFetchData,
     handleHoverCoordinate,
     handleSelectData,
+    resetEditorState
   }
 
   return (

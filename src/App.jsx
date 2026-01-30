@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import UploadPage from './pages/UploadPage';
 import { ThemeProvider } from "next-themes";
 import { UserProvider } from './contexts/UserContext';
 import HomeLayout from './layouts/HomeLayout';
@@ -25,19 +26,20 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/projects" element={<Editor />} />
+              <Route path="/upload" element={<UploadPage />} />
             </Route>
 
             {/* Editor Layout - Context Based Routing */}
             <Route path="/editor" element={<EditorLayout />}>
-                <Route index element={<EditorWelcome />} />
-                <Route path="stops" element={<StopsPage />} />
-                <Route path="routes" element={<RoutesPage />} />
-                <Route path="*" element={<PlaceholderPage />} />
+              <Route index element={<EditorWelcome />} />
+              <Route path="stops" element={<StopsPage />} />
+              <Route path="routes" element={<RoutesPage />} />
+              <Route path="*" element={<PlaceholderPage />} />
             </Route>
 
           </Routes>
         </Router>
-        <Toaster />
+        <Toaster position="top-center" />
       </UserProvider>
     </ThemeProvider>
   );

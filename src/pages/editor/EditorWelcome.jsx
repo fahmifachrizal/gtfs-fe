@@ -1,14 +1,17 @@
 
 import React, { useState, useEffect } from "react"
-import { Plus, Upload, FolderPlus, Calendar, Clock } from "lucide-react"
+import { Plus, Upload, FolderPlus, Calendar, Clock, FileText, Trash2 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-import FileUploader from "../../components/file-uploader" // Check path
+import FileUploader from "../../components/gtfs/FileUploader"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -19,8 +22,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useEditorContext } from "@/contexts/EditorContext"
 import { useUser } from "@/contexts/UserContext"
+import { toast } from "sonner"
+import { getApiUrl } from "@/config/api"
 
 export default function EditorWelcome() {
   const navigate = useNavigate()
@@ -30,21 +36,28 @@ export default function EditorWelcome() {
 
   // Modal states
   const [showStartModal, setShowStartModal] = useState(false)
-  const [modalStep, setModalStep] = useState("choose") // 'choose', 'upload', 'create'
+  const [activeTab, setActiveTab] = useState("empty")
 
   // Project creation states
   const [projectName, setProjectName] = useState("")
   const [projectDescription, setProjectDescription] = useState("")
-  const [creatingProject, setCreatingProject] = useState(false)
-  const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(null)
 
-  // Recent projects (limit to 3 most recent)
+  // Import creation states
+  const [importName, setImportName] = useState("")
+  const [importDesc, setImportDesc] = useState("")
+
+  const [creatingProject, setCreatingProject] = useState(false)
+
+  // Recent projects
   const [recentProjects, setRecentProjects] = useState([])
+
+  // Delete Project State
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [projectToDelete, setProjectToDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (projects && projects.length > 0) {
-      // Get 3 most recent projects (excluding current project if selected)
       const filtered = currentProject
         ? projects.filter((p) => p.id !== currentProject.id)
         : projects
@@ -57,13 +70,13 @@ export default function EditorWelcome() {
     }
   }, [projects, currentProject])
 
-  // Function to create a new project
   const createNewProject = async (name, description = "") => {
     if (!user || !user.token) {
       throw new Error("You must be logged in to create a project.")
     }
 
-    const response = await fetch("/api/projects", {
+    const fullUrl = getApiUrl("/api/projects")
+    const response = await fetch(fullUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -84,48 +97,41 @@ export default function EditorWelcome() {
     return result.project
   }
 
-  const handleFileUpload = async (file) => {
-    try {
-      await handleFetchData("stops")
-      setShowStartModal(false)
-      navigate("/editor/stops")
-    } catch (error) {
-      console.error("Failed to process uploaded data:", error)
-    }
-  }
-
-  // Handle manual project creation
-  const handleCreateProject = async (e) => {
+  const handleCreateProject = async (e, type = "empty") => {
     e.preventDefault()
 
-    if (!projectName.trim()) {
-      setError("Project name is required")
+    const name = type === "import" ? importName : projectName
+    const desc = type === "import" ? importDesc : projectDescription
+
+    if (!name.trim()) {
+      toast.error("Project name is required")
       return
     }
 
     setCreatingProject(true)
-    setError(null)
 
     try {
-      const newProject = await createNewProject(projectName, projectDescription)
+      const newProject = await createNewProject(name, desc)
 
       // Update user context with new project
       setCurrentProject(newProject)
       await refreshProjects()
 
-      setSuccess(`Project "${newProject.name}" created successfully!`)
+      toast.success(`Project "${newProject.name}" created successfully!`)
 
-      // Reset form and close modal
-      setTimeout(() => {
-        setProjectName("")
-        setProjectDescription("")
-        setShowStartModal(false)
-        setModalStep("choose")
-        navigate("/editor/stops")
-      }, 1500)
+      // Logic for example data could go here if type === 'example'
+      if (type === "example") {
+        toast.info("Example data generation not yet implemented, creating empty project instead.")
+      }
+
+      setProjectName("")
+      setProjectDescription("")
+      setShowStartModal(false)
+      navigate("/editor/stops")
+
     } catch (err) {
       console.error("Project creation error:", err)
-      setError(err.message || "Failed to create project")
+      toast.error(err.message || "Failed to create project")
     } finally {
       setCreatingProject(false)
     }
@@ -136,12 +142,54 @@ export default function EditorWelcome() {
     navigate("/editor/stops")
   }
 
+  const handleDeleteClick = (e, project) => {
+    e.stopPropagation() // Prevent card click
+    setProjectToDelete(project)
+    setDeleteDialogOpen(true)
+  }
+
+  const confirmDeleteProject = async () => {
+    if (!projectToDelete) return
+
+    setDeleting(true)
+    try {
+      const fullUrl = getApiUrl(`/api/projects/${projectToDelete.id}`)
+      const response = await fetch(fullUrl, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete project")
+      }
+
+      toast.success(`Project "${projectToDelete.name}" deleted`)
+
+      // If deleted project was current, clear it
+      if (currentProject && currentProject.id === projectToDelete.id) {
+        setCurrentProject(null)
+      }
+
+      await refreshProjects()
+      setDeleteDialogOpen(false)
+      setProjectToDelete(null)
+    } catch (err) {
+      console.error("Delete error:", err)
+      toast.error(err.message || "Failed to delete project")
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const resetModal = () => {
-    setModalStep("choose")
-    setError(null)
-    setSuccess(null)
     setProjectName("")
     setProjectDescription("")
+    setImportName("")
+    setImportDesc("")
+    setImportFile(null)
+    setActiveTab("empty")
   }
 
   const formatDate = (dateString) => {
@@ -173,25 +221,34 @@ export default function EditorWelcome() {
 
       {/* Current Project Display */}
       {currentProject && (
-        <Card className="mb-6 border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/10">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg text-green-800 dark:text-green-200">
-              📁 Current Project
+        <Card className="mb-4 border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/10 shadow-sm">
+          <CardHeader className="pb-2 pt-4 px-4 flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base text-green-800 dark:text-green-200 flex items-center gap-2">
+              📂 Current Project
             </CardTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-green-700 hover:text-red-600 hover:bg-green-100 dark:hover:bg-green-900/50"
+              onClick={(e) => handleDeleteClick(e, currentProject)}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
           </CardHeader>
-          <CardContent className="pt-0">
-            <h3 className="font-semibold text-green-900 dark:text-green-100">
+          <CardContent className="px-4 pb-4">
+            <h3 className="font-semibold text-green-900 dark:text-green-100 text-lg">
               {currentProject.name}
             </h3>
             {currentProject.description && (
-              <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+              <p className="text-xs text-green-700 dark:text-green-300 mt-0.5 line-clamp-1">
                 {currentProject.description}
               </p>
             )}
             <div className="mt-3">
               <Button
+                size="sm"
                 onClick={() => navigate("/editor/stops")}
-                className="bg-green-600 hover:bg-green-700">
+                className="bg-green-600 hover:bg-green-700 w-full sm:w-auto h-8 text-xs">
                 Continue Working
               </Button>
             </div>
@@ -201,29 +258,37 @@ export default function EditorWelcome() {
 
       {/* Recent Projects */}
       {recentProjects.length > 0 && (
-        <div className="mb-8">
-          <h3 className="text-xl font-semibold mb-4">Recent Projects</h3>
-          <div className="space-y-3">
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold mb-3 px-1">Recent Projects</h3>
+          <div className="space-y-2">
             {recentProjects.map((project) => (
               <Card
                 key={project.id}
-                className="cursor-pointer hover:shadow-md transition-shadow"
+                className="cursor-pointer hover:shadow-md transition-all group"
                 onClick={() => handleProjectSelect(project)}>
-                <CardContent className="p-4">
+                <CardContent className="p-3">
                   <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <h4 className="font-medium">{project.name}</h4>
+                    <div className="flex-1 min-w-0 pr-2">
+                      <h4 className="font-medium text-sm truncate">{project.name}</h4>
                       {project.description && (
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className="text-xs text-muted-foreground truncate">
                           {project.description}
                         </p>
                       )}
                     </div>
-                    <div className="text-right text-sm text-muted-foreground ml-4">
-                      <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-xs text-muted-foreground flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {formatDate(project.updated_at)}
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-500"
+                        onClick={(e) => handleDeleteClick(e, project)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -248,110 +313,118 @@ export default function EditorWelcome() {
             </Button>
           </DialogTrigger>
 
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>
-                {modalStep === "choose" && "Start New Project"}
-                {modalStep === "upload" && "Upload GTFS Data"}
-                {modalStep === "create" && "Create Empty Project"}
-              </DialogTitle>
+              <DialogTitle>Start New Project</DialogTitle>
             </DialogHeader>
 
-            {/* Choose Option Step */}
-            {modalStep === "choose" && (
-              <div className="space-y-4">
-                <p className="text-muted-foreground">
-                  How would you like to start your new GTFS project?
-                </p>
+            <Tabs defaultValue="empty" value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="empty">Create Empty</TabsTrigger>
+                <TabsTrigger value="example">With Example</TabsTrigger>
+                <TabsTrigger value="import">Import .zip</TabsTrigger>
+              </TabsList>
 
-                <div className="grid gap-3">
-                  {/* File Upload Option - To be implemented fully */}
-                  <Button
-                    variant="outline"
-                    className="justify-start h-auto p-4"
-                    onClick={() => setModalStep("create")}>
-                     {/* Simplified to just create for now, as file uploader component might need props */}
-                    <FolderPlus className="w-5 h-5 mr-3" />
-                    <div className="text-left">
-                      <div className="font-medium">Create Empty Project</div>
-                      <div className="text-sm text-muted-foreground">
-                        Start from scratch with a new project
-                      </div>
-                    </div>
-                  </Button>
-                </div>
-
-                <div className="flex justify-end pt-2">
-                  <Button
-                    variant="ghost"
-                    onClick={() => setShowStartModal(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Create Project Step */}
-            {modalStep === "create" && (
-              <div className="space-y-4">
-                {error && (
-                  <div className="p-3 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-md">
-                    <p className="text-red-800 dark:text-red-200 text-sm">
-                      {error}
-                    </p>
-                  </div>
-                )}
-
-                {success && (
-                  <div className="p-3 bg-green-100 dark:bg-green-900/20 border border-green-300 dark:border-green-700 rounded-md">
-                    <p className="text-green-800 dark:text-green-200 text-sm">
-                      {success}
-                    </p>
-                  </div>
-                )}
-
-                <form onSubmit={handleCreateProject} className="space-y-4">
-                  <div>
+              {/* EMPTY PROJECT TAB */}
+              <TabsContent value="empty" className="space-y-4 pt-4">
+                <form onSubmit={(e) => handleCreateProject(e, "empty")} className="space-y-4">
+                  <div className="space-y-2">
                     <Label htmlFor="projectName">Project Name *</Label>
                     <Input
                       id="projectName"
-                      type="text"
+                      placeholder="My New Transit Project"
                       value={projectName}
                       onChange={(e) => setProjectName(e.target.value)}
-                      placeholder="My Transit Project"
-                      disabled={creatingProject}
                       required
                     />
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="projectDescription">Description</Label>
+                    {/* Fallback to Input if Textarea is not available, but usually nice to haveTextArea */}
                     <Input
                       id="projectDescription"
-                      type="text"
+                      placeholder="Optional description"
                       value={projectDescription}
                       onChange={(e) => setProjectDescription(e.target.value)}
-                      placeholder="Optional project description"
-                      disabled={creatingProject}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={creatingProject}>
+                    {creatingProject ? "Creating..." : "Create Empty Project"}
+                  </Button>
+                </form>
+              </TabsContent>
+
+              {/* EXAMPLE PROJECT TAB */}
+              <TabsContent value="example" className="space-y-4 pt-4">
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md border border-blue-200 dark:border-blue-800 mb-2">
+                  <p className="text-sm text-blue-800 dark:text-blue-200 flex items-start gap-2">
+                    <FileText className="w-4 h-4 mt-0.5 shrink-0" />
+                    Start with a pre-populated dataset to explore the editor features.
+                  </p>
+                </div>
+                <form onSubmit={(e) => handleCreateProject(e, "example")} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="exProjectName">Project Name *</Label>
+                    <Input
+                      id="exProjectName"
+                      placeholder="Example GTFS Project"
+                      value={projectName}
+                      onChange={(e) => setProjectName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="exProjectDescription">Description</Label>
+                    <Input
+                      id="exProjectDescription"
+                      placeholder="Optional description"
+                      value={projectDescription}
+                      onChange={(e) => setProjectDescription(e.target.value)}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={creatingProject}>
+                    {creatingProject ? "Creating..." : "Create with Example Data"}
+                  </Button>
+                </form>
+              </TabsContent>
+
+              {/* IMPORT ZIP TAB */}
+              <TabsContent value="import" className="space-y-4 pt-4">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="importName">Project Name *</Label>
+                    <Input
+                      id="importName"
+                      placeholder="Imported Project Name"
+                      value={importName}
+                      onChange={(e) => setImportName(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="importDesc">Description</Label>
+                    <Input
+                      id="importDesc"
+                      placeholder="Optional description"
+                      value={importDesc}
+                      onChange={(e) => setImportDesc(e.target.value)}
                     />
                   </div>
 
-                  <div className="flex justify-between pt-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setModalStep("choose")}
-                      disabled={creatingProject}>
-                      Back
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={creatingProject || !projectName.trim()}>
-                      {creatingProject ? "Creating..." : "Create Project"}
-                    </Button>
+                  <div className="pt-2">
+                    <Label className="mb-2 block">Upload GTFS Zip File</Label>
+                    <FileUploader
+                      projectName={importName}
+                      projectDescription={importDesc}
+                      showProjectForm={false}
+                      onFileUpload={() => {
+                        setShowStartModal(false)
+                        navigate("/editor/stops")
+                      }}
+                    />
                   </div>
-                </form>
-              </div>
-            )}
+                </div>
+              </TabsContent>
+            </Tabs>
           </DialogContent>
         </Dialog>
 
@@ -361,6 +434,24 @@ export default function EditorWelcome() {
           </p>
         )}
       </div>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Project</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <span className="font-semibold">{projectToDelete?.name}</span>?
+              <br />This action cannot be undone and will delete all associated GTFS data.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmDeleteProject} disabled={deleting}>
+              {deleting ? "Deleting..." : "Delete Project"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

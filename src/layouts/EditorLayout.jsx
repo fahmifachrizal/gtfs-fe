@@ -1,4 +1,5 @@
 import React, { useState } from "react"
+import { toast } from "sonner"
 import { useLocation, Outlet, Link } from "react-router-dom"
 // import { AuthGuard } from "@/components/auth/AuthGuard" // Ensure this exists or implement simple check
 import { EditorProvider, useEditorContext } from "@/contexts/EditorContext"
@@ -10,6 +11,15 @@ import {
     EditorPreferences,
 } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
+import { getApiUrl } from "@/config/api"
 import LeafletDynamic from "@/components/maps/leaflet-dynamic"
 import "leaflet/dist/leaflet.css"
 
@@ -35,48 +45,10 @@ function EditorLayoutContent({ children }) {
         URL.revokeObjectURL(url)
     }
 
-    const handleReset = async () => {
-        if (!currentProject) {
-            alert("No project selected")
-            return
-        }
-
-        const confirmed = window.confirm(
-            `Are you sure you want to reset all GTFS data for project "${currentProject.name}"? This action cannot be undone.`
-        )
-
-        if (!confirmed) return
-
-        setLoading(true)
-        try {
-            // Note: fetch URL might need adjustment directly to backend url if not proxied
-            const res = await fetch(
-                `/api/gtfs/reset?project_id=${currentProject.id}`,
-                {
-                    method: "DELETE",
-                    headers: {
-                        Authorization: `Bearer ${user.token}`,
-                        "Content-Type": "application/json",
-                    },
-                }
-            )
-
-            const result = await res.json()
-            if (!res.ok) throw new Error(result.error || "Failed to reset tables")
-
-            alert("All GTFS tables reset!")
-        } catch (err) {
-            alert(err.message)
-        } finally {
-            setLoading(false)
-        }
-    }
-
     return (
         <EditorProvider>
             <EditorLayoutInner
                 onExport={handleExport}
-                onReset={handleReset}
                 loading={loading}>
                 {children}
             </EditorLayoutInner>
@@ -84,9 +56,48 @@ function EditorLayoutContent({ children }) {
     )
 }
 
-function EditorLayoutInner({ children, onExport, onReset, loading }) {
+function EditorLayoutInner({ children, onExport, loading: initialLoading }) {
     const { user, currentProject } = useUser()
-    const { center, mapData, generateAnimationRoutes } = useEditorContext()
+    const { center, mapData, generateAnimationRoutes, resetEditorState } = useEditorContext()
+    const [loading, setLoading] = useState(false) // Local loading for reset
+    const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
+
+    const handleResetClick = () => {
+        if (!currentProject) {
+            toast.error("No project selected")
+            return
+        }
+        setIsResetDialogOpen(true)
+    }
+
+    const confirmReset = async () => {
+        setLoading(true)
+        try {
+            const fullUrl = getApiUrl(`/api/gtfs/reset`)
+            const res = await fetch(
+                fullUrl,
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${user.token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ project_id: currentProject.id }),
+                }
+            )
+
+            const result = await res.json()
+            if (!res.ok) throw new Error(result.error || "Failed to reset tables")
+
+            toast.success("All GTFS tables reset!")
+            if (resetEditorState) resetEditorState()
+            setIsResetDialogOpen(false)
+        } catch (err) {
+            toast.error(err.message)
+        } finally {
+            setLoading(false)
+        }
+    }
 
     // Animation event handlers (optional - for debugging/monitoring)
     const handleInstanceCreate = (instanceId, routeId, info) => {
@@ -131,7 +142,7 @@ function EditorLayoutInner({ children, onExport, onReset, loading }) {
                     <div className="flex items-center space-x-2">
                         <EditorPreferences
                             onExport={onExport}
-                            onReset={onReset}
+                            onReset={handleResetClick}
                             loading={loading}
                         />
                         {user ? (
@@ -151,7 +162,7 @@ function EditorLayoutInner({ children, onExport, onReset, loading }) {
             {/* Main Content Area */}
             <div className="flex flex-1 overflow-hidden">
                 {/* Sidebar */}
-                <div className="w-1/4 border-r border-border/40 flex flex-col bg-background">
+                <div className="w-[500px] flex-shrink-0 border-r border-border/40 flex flex-col bg-background">
                     <div className="flex-1 overflow-y-auto scrollbar-hide">
                         {children}
                         <Outlet />
@@ -159,7 +170,7 @@ function EditorLayoutInner({ children, onExport, onReset, loading }) {
                 </div>
 
                 {/* Map container with animation support */}
-                <div className="w-3/4 flex flex-col relative">
+                <div className="flex-1 flex flex-col relative min-w-0">
                     <LeafletDynamic
                         center={center || [-6.175389, 106.827139]}
                         zoom={13}
@@ -172,6 +183,26 @@ function EditorLayoutInner({ children, onExport, onReset, loading }) {
                     />
                 </div>
             </div>
+
+            <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Reset Project Data?</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to reset all GTFS data for project <span className="font-semibold">{currentProject?.name}</span>?
+                            <br />This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsResetDialogOpen(false)} disabled={loading}>
+                            Cancel
+                        </Button>
+                        <Button variant="destructive" onClick={confirmReset} disabled={loading}>
+                            {loading ? "Resetting..." : "Reset Data"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

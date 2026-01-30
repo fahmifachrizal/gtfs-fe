@@ -7,6 +7,7 @@ import React, {
   useEffect,
   useCallback,
 } from "react"
+import { getApiUrl } from "@/config/api"
 
 // Create User Context
 const UserContext = createContext()
@@ -85,7 +86,8 @@ export function UserProvider({ children }) {
     if (!token) return
 
     try {
-      const response = await fetch("/api/projects", {
+      const fullUrl = getApiUrl("/api/projects")
+      const response = await fetch(fullUrl, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -122,7 +124,8 @@ export function UserProvider({ children }) {
       setToken(storedToken)
 
       // Try to get fresh user data from API
-      const response = await fetch("/api/auth/me", {
+      const fullUrl = getApiUrl("/api/auth/me")
+      const response = await fetch(fullUrl, {
         headers: {
           Authorization: `Bearer ${storedToken}`,
           "Content-Type": "application/json",
@@ -176,7 +179,8 @@ export function UserProvider({ children }) {
       setIsLoginLoading(true)
       setLoginError(null)
 
-      const response = await fetch("/api/auth/login", {
+      const fullUrl = getApiUrl("/api/auth/login")
+      const response = await fetch(fullUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -187,7 +191,7 @@ export function UserProvider({ children }) {
       const data = await response.json()
 
       if (response.ok && data.success) {
-        const { user: userData, token: userToken } = data.data
+        const { user: userData, token: userToken } = data
 
         // FIXED: Create user object with token included
         const userWithToken = createUserWithToken(userData, userToken)
@@ -228,7 +232,8 @@ export function UserProvider({ children }) {
       setIsRegisterLoading(true)
       setRegisterError(null)
 
-      const response = await fetch("/api/auth/register", {
+      const fullUrl = getApiUrl("/api/auth/register")
+      const response = await fetch(fullUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -239,7 +244,7 @@ export function UserProvider({ children }) {
       const data = await response.json()
 
       if (response.ok && data.success) {
-        const { user: newUser, token: userToken } = data.data
+        const { user: newUser, token: userToken } = data
 
         // FIXED: Create user object with token included
         const userWithToken = createUserWithToken(newUser, userToken)
@@ -276,7 +281,8 @@ export function UserProvider({ children }) {
     try {
       if (token) {
         // Call logout API to invalidate server sessions
-        await fetch("/api/auth/logout", {
+        const fullUrl = getApiUrl("/api/auth/logout")
+        await fetch(fullUrl, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -320,7 +326,8 @@ export function UserProvider({ children }) {
       setIsProfileLoading(true)
       setError(null)
 
-      const response = await fetch("/api/auth/profile", {
+      const fullUrl = getApiUrl("/api/auth/profile")
+      const response = await fetch(fullUrl, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -362,7 +369,8 @@ export function UserProvider({ children }) {
       setIsLoading(true)
       setError(null)
 
-      const response = await fetch("/api/auth/preferences", {
+      const fullUrl = getApiUrl("/api/auth/preferences")
+      const response = await fetch(fullUrl, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -407,7 +415,8 @@ export function UserProvider({ children }) {
       setIsLoading(true)
       setError(null)
 
-      const response = await fetch("/api/auth/change-password", {
+      const fullUrl = getApiUrl("/api/auth/change-password")
+      const response = await fetch(fullUrl, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -438,7 +447,8 @@ export function UserProvider({ children }) {
    */
   const refreshToken = async () => {
     try {
-      const response = await fetch("/api/auth/refresh", {
+      const fullUrl = getApiUrl("/api/auth/refresh")
+      const response = await fetch(fullUrl, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -482,7 +492,8 @@ export function UserProvider({ children }) {
       setIsLoading(true)
       setError(null)
 
-      const response = await fetch("/api/auth/forgot-password", {
+      const fullUrl = getApiUrl("/api/auth/forgot-password")
+      const response = await fetch(fullUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -515,7 +526,8 @@ export function UserProvider({ children }) {
       setIsLoading(true)
       setError(null)
 
-      const response = await fetch("/api/auth/reset-password", {
+      const fullUrl = getApiUrl("/api/auth/reset-password")
+      const response = await fetch(fullUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
