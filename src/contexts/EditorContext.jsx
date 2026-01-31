@@ -22,6 +22,21 @@ export function EditorProvider({ children }) {
     type: "FeatureCollection",
     features: [],
   })
+  const [mapBounds, setMapBounds] = useState(null) // New state for bounds
+
+  // Sidebar / Detail View State
+  const [activeDetail, setActiveDetail] = useState(null)
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
+
+  const setDetailView = useCallback((content) => {
+    setActiveDetail(content)
+    setIsDetailOpen(!!content)
+  }, [])
+
+  const closeDetail = useCallback(() => {
+    setIsDetailOpen(false)
+    setActiveDetail(null)
+  }, [])
 
   const [gtfsData, setGtfsData] = useState({
     agency: [],
@@ -49,7 +64,7 @@ export function EditorProvider({ children }) {
     shapes: { page: 1, pageSize: 10, totalPages: 1, totalItems: 0, search: "" },
   })
 
-  const handleFetchData = async (type, options = {}) => {
+  const handleFetchData = useCallback(async (type, options = {}) => {
     const { page = 1, overrideData = null, search = "" } = options
 
     if (overrideData) {
@@ -65,10 +80,19 @@ export function EditorProvider({ children }) {
       return { meta: gtfsMeta[type] }
     }
 
+    const token = user?.token || localStorage.getItem('auth_token');
+
+    if (!token) {
+      console.warn("[EditorContext] Cannot fetch data: User not authenticated")
+      return { error: "User not authenticated" }
+    }
+
     try {
+      const projectId = currentProject?.id || JSON.parse(localStorage.getItem('current_project') || '{}')?.id;
+
       const query = new URLSearchParams({
         page: page.toString(),
-        ...(currentProject && { project_id: currentProject.id }),
+        ...(projectId && { project_id: projectId }),
         ...(search && { search }),
       }).toString()
 
@@ -77,7 +101,7 @@ export function EditorProvider({ children }) {
 
       const response = await fetch(fullUrl, {
         headers: {
-          Authorization: `Bearer ${user.token}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
       })
@@ -144,20 +168,20 @@ export function EditorProvider({ children }) {
         error: error.message,
       }
     }
-  }
+  }, [currentProject, user, gtfsMeta])
 
-  const handleHoverCoordinate = (coordinate) => {
+  const handleHoverCoordinate = useCallback((coordinate) => {
     if (coordinate) {
       setCenter([coordinate.lat, coordinate.lon])
     }
-  }
+  }, [])
 
-  const handleSelectData = (data) => {
+  const handleSelectData = useCallback((data) => {
     setSelectedData(data)
     if (data.stop_lat && data.stop_lon) {
       setCenter([data.stop_lat, data.stop_lon])
     }
-  }
+  }, [])
 
   const updateMapData = useCallback((newMapData) => {
     setMapData(newMapData)
@@ -228,21 +252,21 @@ export function EditorProvider({ children }) {
     return Array.from(routeMap.values())
   }, [mapData])
 
-  const getMeta = (type) =>
+  const getMeta = useCallback((type) =>
     gtfsMeta[type] || {
       page: 1,
       pageSize: 10,
       totalPages: 1,
       totalItems: 0,
       search: "",
-    }
+    }, [gtfsMeta])
 
-  const updateMeta = (type, newMeta) => {
+  const updateMeta = useCallback((type, newMeta) => {
     setGtfsMeta((prev) => ({
       ...prev,
       [type]: { ...prev[type], ...newMeta },
     }))
-  }
+  }, [])
 
   const contextValue = {
     center,
@@ -257,12 +281,20 @@ export function EditorProvider({ children }) {
     updateMeta,
     mapData,
     updateMapData,
+    mapBounds,
+    setMapBounds,
     clearMap, // New helper
     generateAnimationRoutes,
     handleFetchData,
     handleHoverCoordinate,
     handleSelectData,
-    resetEditorState
+    resetEditorState,
+
+    // Detail View
+    activeDetail,
+    isDetailOpen,
+    setDetailView,
+    closeDetail,
   }
 
   return (

@@ -54,7 +54,7 @@ export function StopPopup({
   }
 
   return (
-    <Card className="min-w-[180px] border-none shadow-lg">
+    <Card className="min-w-45 border-none shadow-lg">
       <CardHeader className="p-3 pb-2">
         <CardTitle className="text-sm font-semibold flex items-center gap-2">
           <MapPin className="w-4 h-4 text-primary" />

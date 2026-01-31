@@ -10,6 +10,8 @@ import {
     UserPreferences,
     EditorPreferences,
 } from "@/components/navigation"
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
+import { EditorSidebar } from "@/components/EditorSidebar"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
@@ -58,7 +60,7 @@ function EditorLayoutContent({ children }) {
 
 function EditorLayoutInner({ children, onExport, loading: initialLoading }) {
     const { user, currentProject } = useUser()
-    const { center, mapData, generateAnimationRoutes, resetEditorState } = useEditorContext()
+    const { center, mapData, mapBounds, generateAnimationRoutes, resetEditorState } = useEditorContext()
     const [loading, setLoading] = useState(false) // Local loading for reset
     const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
 
@@ -119,13 +121,29 @@ function EditorLayoutInner({ children, onExport, loading: initialLoading }) {
         // console.log(`[Editor] Progress ${instanceId}: ${Math.round(progress * 100)}%`)
     }
 
+    const { activeDetail, isDetailOpen, closeDetail } = useEditorContext()
+    const detailRef = React.useRef(null)
+
+    React.useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (detailRef.current && !detailRef.current.contains(event.target)) {
+                closeDetail()
+            }
+        }
+
+        if (isDetailOpen) {
+            document.addEventListener("mousedown", handleClickOutside)
+        }
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside)
+        }
+    }, [isDetailOpen, closeDetail])
+
     return (
         <div className="h-screen flex flex-col text-foreground bg-background">
-            {/* Compact Header with Navigation */}
-            <div className="w-full border-b border-border/40 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 z-10">
-                {/* Top Row - Brand, Project, Actions, User */}
+            {/* HEADER (Horizontal Menus) */}
+            <div className="w-full border-b border-border/40 bg-background/95 backdrop-blur z-20">
                 <div className="flex items-center justify-between px-4 py-2">
-                    {/* Left side - Brand and Project */}
                     <div className="flex items-center space-x-4">
                         <div className="flex items-center space-x-2">
                             <h1 className="text-lg font-bold">GTFS Editor</h1>
@@ -137,52 +155,70 @@ function EditorLayoutInner({ children, onExport, loading: initialLoading }) {
                         </div>
                         <MainMenu />
                     </div>
-
-                    {/* Right side - Actions and User Preferences */}
                     <div className="flex items-center space-x-2">
                         <EditorPreferences
                             onExport={onExport}
                             onReset={handleResetClick}
                             loading={loading}
                         />
-                        {user ? (
-                            <UserPreferences />
-                        ) : (
-                            <Button variant="ghost" size="sm" asChild>
-                                <Link to="/login">Log in</Link>
-                            </Button>
-                        )}
+                        {user ? <UserPreferences /> : <Button variant="ghost" size="sm" asChild><Link to="/login">Log in</Link></Button>}
                     </div>
                 </div>
-
-                {/* Second Row - Editor Navigation */}
                 <EditorMenu />
             </div>
 
-            {/* Main Content Area */}
-            <div className="flex flex-1 overflow-hidden">
-                {/* Sidebar */}
-                <div className="w-[500px] flex-shrink-0 border-r border-border/40 flex flex-col bg-background">
-                    <div className="flex-1 overflow-y-auto scrollbar-hide">
-                        {children}
-                        <Outlet />
-                    </div>
-                </div>
+            {/* SIDEBARS & CONTENT */}
+            <SidebarProvider
+                style={{
+                    "--sidebar-width": "500px",
+                    "--sidebar-width-icon": "3rem",
+                }}
+                className="flex-1 min-h-0 overflow-hidden"
+            >
+                <EditorSidebar className="mt-0 h-full border-r">
+                    {children}
+                    <Outlet />
+                </EditorSidebar>
 
-                {/* Map container with animation support */}
-                <div className="flex-1 flex flex-col relative min-w-0">
-                    <LeafletDynamic
-                        center={center || [-6.175389, 106.827139]}
-                        zoom={13}
-                        className="h-full w-full z-0"
-                        geojsonData={mapData}
-                        routes={generateAnimationRoutes}
-                        onInstanceCreate={handleInstanceCreate}
-                        onInstanceComplete={handleInstanceComplete}
-                        onProgress={handleProgress}
-                    />
-                </div>
-            </div>
+                <SidebarInset className="relative flex flex-col h-full overflow-hidden">
+                    <div className="flex-1 relative overflow-hidden">
+                        {/* MAP LAYER */}
+                        <div className="absolute inset-0 z-0">
+                            <LeafletDynamic
+                                center={center || [-6.175389, 106.827139]}
+                                zoom={13}
+                                className="h-full w-full"
+                                geojsonData={mapData}
+                                bounds={mapBounds}
+                                routes={generateAnimationRoutes}
+                                onInstanceCreate={handleInstanceCreate}
+                                onInstanceComplete={handleInstanceComplete}
+                                onProgress={handleProgress}
+                                rightPadding={isDetailOpen ? 400 : 0}
+                            />
+                        </div>
+
+                        {/* DETAIL SIDEBAR (Floating Right) */}
+                        {isDetailOpen && (
+                            <div
+                                ref={detailRef}
+                                className="absolute top-4 right-4 bottom-4 w-[400px] z-20 bg-background/95 backdrop-blur shadow-xl border border-border/50 rounded-xl overflow-hidden flex flex-col animate-in slide-in-from-right-10 fade-in duration-200"
+                            >
+                                <div className="flex items-center justify-between p-4 border-b">
+                                    <h3 className="font-semibold text-sm">Details</h3>
+                                    <Button variant="ghost" size="icon" onClick={closeDetail} className="h-8 w-8">
+                                        <span className="sr-only">Close</span>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                                    </Button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto p-4">
+                                    {activeDetail}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </SidebarInset>
+            </SidebarProvider>
 
             <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
                 <DialogContent>

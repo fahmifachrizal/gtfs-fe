@@ -20,7 +20,7 @@ const stops = [
     accessorKey: "stop_id",
     header: "Stop ID",
     cell: ({ row }) => {
-      return <div className="w-[60px] font-semibold">{row.getValue("stop_id")}</div>
+      return <div className="w-15 font-semibold">{row.getValue("stop_id")}</div>
     },
     visible: true,
     required: true,
@@ -29,7 +29,7 @@ const stops = [
     accessorKey: "stop_name",
     header: () => <div className="w-1/2">Stop Name</div>,
     cell: ({ row }) => {
-      return <div className="w-[180px] truncate">{row.getValue("stop_name")}</div>
+      return <div className="w-45 truncate">{row.getValue("stop_name")}</div>
     },
     visible: true,
     required: true,
@@ -38,7 +38,7 @@ const stops = [
     accessorKey: "stop_lat",
     header: "Latitude",
     cell: ({ row }) => {
-      return <div className="w-[50px]">{Number(row.getValue("stop_lat")).toFixed(4)}</div>
+      return <div className="w-12.5">{Number(row.getValue("stop_lat")).toFixed(4)}</div>
     },
     visible: true,
     required: true,
@@ -47,7 +47,7 @@ const stops = [
     accessorKey: "stop_lon",
     header: "Longitude",
     cell: ({ row }) => {
-      return <div className="w-[50px]">{Number(row.getValue("stop_lon")).toFixed(4)}</div>
+      return <div className="w-12.5">{Number(row.getValue("stop_lon")).toFixed(4)}</div>
     },
     visible: true,
     required: true,
@@ -133,24 +133,71 @@ const routes = [
 ]
 
 const trips = [
-  { accessorKey: "route_id", header: "Route ID", required: true },
-  { accessorKey: "service_id", header: "Service ID", required: true },
-  { accessorKey: "trip_id", header: "Trip ID", required: true },
-  { accessorKey: "trip_headsign", header: "Trip Headsign", required: false },
+  {
+    accessorKey: "trip_id",
+    header: "Trip ID",
+    cell: ({ row }) => <div className="w-20 font-mono text-xs">{row.getValue("trip_id")}</div>,
+    visible: true,
+    required: true,
+  },
+  {
+    accessorKey: "route_id",
+    header: "Route ID",
+    cell: ({ row }) => <div className="w-16 font-semibold">{row.getValue("route_id")}</div>,
+    visible: true,
+    required: true,
+  },
+  {
+    accessorKey: "service_id",
+    header: "Service ID",
+    cell: ({ row }) => <div className="w-16">{row.getValue("service_id")}</div>,
+    visible: true,
+    required: true,
+  },
+  {
+    accessorKey: "trip_headsign",
+    header: "Headsign",
+    cell: ({ row }) => <div className="w-32 truncate">{row.getValue("trip_headsign") || "-"}</div>,
+    visible: true,
+    required: false,
+  },
+  {
+    accessorKey: "direction_id",
+    header: "Dir",
+    cell: ({ row }) => <div className="w-8 text-center">{row.getValue("direction_id")}</div>,
+    visible: true,
+    required: false,
+  },
   {
     accessorKey: "trip_short_name",
-    header: "Trip Short Name",
+    header: "Short Name",
+    visible: false,
     required: false,
   },
-  { accessorKey: "direction_id", header: "Direction ID", required: false },
-  { accessorKey: "block_id", header: "Block ID", required: false },
-  { accessorKey: "shape_id", header: "Shape ID", required: false },
+  {
+    accessorKey: "block_id",
+    header: "Block ID",
+    visible: false,
+    required: false,
+  },
+  {
+    accessorKey: "shape_id",
+    header: "Shape ID",
+    visible: false,
+    required: false,
+  },
   {
     accessorKey: "wheelchair_accessible",
-    header: "Wheelchair Accessible",
+    header: "Wheelchair",
+    visible: false,
     required: false,
   },
-  { accessorKey: "bikes_allowed", header: "Bikes Allowed", required: false },
+  {
+    accessorKey: "bikes_allowed",
+    header: "Bikes",
+    visible: false,
+    required: false,
+  },
 ]
 
 const stopTimes = [
@@ -181,16 +228,76 @@ const stopTimes = [
 ]
 
 const calendar = [
-  { accessorKey: "service_id", header: "Service ID", required: true },
-  { accessorKey: "monday", header: "Monday", required: true },
-  { accessorKey: "tuesday", header: "Tuesday", required: true },
-  { accessorKey: "wednesday", header: "Wednesday", required: true },
-  { accessorKey: "thursday", header: "Thursday", required: true },
-  { accessorKey: "friday", header: "Friday", required: true },
-  { accessorKey: "saturday", header: "Saturday", required: true },
-  { accessorKey: "sunday", header: "Sunday", required: true },
-  { accessorKey: "start_date", header: "Start Date", required: true },
-  { accessorKey: "end_date", header: "End Date", required: true },
+  {
+    accessorKey: "service_id",
+    header: "Service ID",
+    cell: ({ row }) => <div className="w-24 font-semibold">{row.getValue("service_id")}</div>,
+    visible: true,
+    required: true,
+  },
+  {
+    accessorKey: "monday",
+    header: "M",
+    cell: ({ row }) => <div className="w-6 text-center">{row.getValue("monday") ? "✓" : "-"}</div>,
+    visible: true,
+    required: true,
+  },
+  {
+    accessorKey: "tuesday",
+    header: "T",
+    cell: ({ row }) => <div className="w-6 text-center">{row.getValue("tuesday") ? "✓" : "-"}</div>,
+    visible: true,
+    required: true,
+  },
+  {
+    accessorKey: "wednesday",
+    header: "W",
+    cell: ({ row }) => <div className="w-6 text-center">{row.getValue("wednesday") ? "✓" : "-"}</div>,
+    visible: true,
+    required: true,
+  },
+  {
+    accessorKey: "thursday",
+    header: "T",
+    cell: ({ row }) => <div className="w-6 text-center">{row.getValue("thursday") ? "✓" : "-"}</div>,
+    visible: true,
+    required: true,
+  },
+  {
+    accessorKey: "friday",
+    header: "F",
+    cell: ({ row }) => <div className="w-6 text-center">{row.getValue("friday") ? "✓" : "-"}</div>,
+    visible: true,
+    required: true,
+  },
+  {
+    accessorKey: "saturday",
+    header: "S",
+    cell: ({ row }) => <div className="w-6 text-center">{row.getValue("saturday") ? "✓" : "-"}</div>,
+    visible: true,
+    required: true,
+  },
+  {
+    accessorKey: "sunday",
+    header: "S",
+    cell: ({ row }) => <div className="w-6 text-center">{row.getValue("sunday") ? "✓" : "-"}</div>,
+    visible: true,
+    required: true,
+  },
+  {
+    accessorKey: "start_date",
+    header: "Start",
+    cell: ({ row }) => <div className="w-20 font-mono text-xs">{row.getValue("start_date")}</div>,
+    visible: true,
+    required: true,
+  },
+  {
+    accessorKey: "end_date",
+    header: "End",
+    cell: ({ row }) => <div className="w-20 font-mono text-xs">{row.getValue("end_date")}</div>,
+    visible: true,
+    required: true,
+  },
 ]
 
 const columns = { agency, stops, routes, trips, stopTimes, calendar }

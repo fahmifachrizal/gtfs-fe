@@ -53,9 +53,29 @@ export function UserProvider({ children }) {
   const [currentProject, setCurrentProject] = useState(null)
   const [sharedProjects, setSharedProjects] = useState([])
 
-  // Initialize auth from localStorage on mount
+  // Initialize auth and project from localStorage on mount
   useEffect(() => {
     initializeAuth()
+
+    // Restore current project
+    const storedProject = localStorage.getItem("current_project")
+    if (storedProject) {
+      try {
+        setCurrentProject(JSON.parse(storedProject))
+      } catch (e) {
+        console.error("Failed to parse stored project", e)
+        localStorage.removeItem("current_project")
+      }
+    }
+  }, [])
+
+  const handleSetCurrentProject = useCallback((project) => {
+    setCurrentProject(project)
+    if (project) {
+      localStorage.setItem("current_project", JSON.stringify(project))
+    } else {
+      localStorage.removeItem("current_project")
+    }
   }, [])
 
   // Auto-refresh token before expiry
@@ -314,6 +334,7 @@ export function UserProvider({ children }) {
     // Clear localStorage
     localStorage.removeItem("auth_token")
     localStorage.removeItem("user_data")
+    localStorage.removeItem("current_project")
 
     setAuthState(AUTH_STATES.UNAUTHENTICATED)
   }
@@ -657,7 +678,8 @@ export function UserProvider({ children }) {
     resetPassword,
 
     // Project management
-    setCurrentProject,
+    // Project management
+    setCurrentProject: handleSetCurrentProject,
     refreshProjects, // FIXED: Expose refreshProjects function
 
     // Utility functions

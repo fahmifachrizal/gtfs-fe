@@ -3,27 +3,15 @@ import { Link, useLocation } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import {
   NavigationMenu,
-  NavigationMenuContent,
   NavigationMenuItem,
   NavigationMenuLink,
   NavigationMenuList,
   navigationMenuTriggerStyle,
-  NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu"
 import {
   Home,
   FolderOpen,
-  Settings,
-  MapPin,
-  Route,
-  Clock,
-  Calendar,
-  CreditCard,
-  Database,
-  Shapes,
 } from "lucide-react"
-
-
 
 const ListItem = React.forwardRef(
   ({ className, title, children, href, icon, ...props }, ref) => {

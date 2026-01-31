@@ -123,3 +123,27 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Leaflet Popup Override */
+.transparent-popup .leaflet-popup-content-wrapper {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border: none !important;
+}
+
+.transparent-popup .leaflet-popup-content {
+  margin: 0 !important;
+  width: auto !important;
+}
+
+.transparent-popup .leaflet-popup-tip-container {
+  display: none !important;
+}
+
+.transparent-popup .leaflet-popup-close-button {
+  color: var(--foreground) !important;
+  top: 8px !important;
+  right: 8px !important;
+  z-index: 50 !important;
+}

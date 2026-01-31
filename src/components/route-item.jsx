@@ -9,6 +9,7 @@ import {
   Navigation,
   ArrowRight,
   ArrowLeft,
+  Pencil,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
@@ -19,6 +20,7 @@ const RouteItem = ({
   isLoadingDetails,
   onToggle,
   onStopClick,
+  onEdit,
 }) => {
   const [activeTab, setActiveTab] = useState(0)
 
@@ -65,7 +67,7 @@ const RouteItem = ({
                 className="flex items-center p-3 bg-background rounded-md border border-border hover:bg-muted/50 transition-colors cursor-pointer"
                 onClick={() => onStopClick(stop)}>
                 <div className="flex items-center space-x-3 min-w-0 flex-1">
-                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary flex-shrink-0">
+                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary shrink-0">
                     {stop.stop_sequence || index + 1}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -95,11 +97,20 @@ const RouteItem = ({
   return (
     <div className="border border-border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow text-sm">
       {/* Route Header */}
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={onToggle}
-        className="w-full px-4 py-2 flex items-center justify-between hover:bg-muted/50 transition-colors">
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            onToggle()
+          }
+        }}
+        className="w-full px-4 py-2 flex items-center justify-between hover:bg-muted/50 transition-colors cursor-pointer"
+      >
         <div className="flex items-center space-x-4 min-w-0 flex-1">
-          <div className="flex items-center space-x-2 flex-shrink-0">
+          <div className="flex items-center space-x-2 shrink-0">
             <div
               className="px-3 py-1 rounded-full text-xs font-semibold"
               style={{
@@ -117,14 +128,27 @@ const RouteItem = ({
                 "Unnamed Route"}
             </h3>
             {availableDirections.length > 0 && (
-              <span className="flex items-center h-5 w-5 bg-primary/20 rounded-full text-xs justify-center text-foreground flex-shrink-0">
+              <span className="flex items-center h-5 w-5 bg-primary/20 rounded-full text-xs justify-center text-foreground shrink-0">
                 {availableDirections.length}
               </span>
+            )}
+            {onEdit && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onEdit()
+                }}
+                className="h-7 w-7 p-0 ml-2 shrink-0"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
             )}
           </div>
         </div>
 
-        <div className="flex items-center space-x-2 flex-shrink-0">
+        <div className="flex items-center space-x-2 shrink-0">
           {isLoadingDetails && (
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
           )}
@@ -134,7 +158,7 @@ const RouteItem = ({
             <ChevronRight className="w-5 h-5 text-muted-foreground" />
           )}
         </div>
-      </button>
+      </div>
 
       {/* Expandable Details Section */}
       {isExpanded && (
@@ -181,15 +205,13 @@ const RouteItem = ({
                               key={directionId}
                               onClick={() => setActiveTab(index)}
                               title={fullLabel}
-                              className={`relative group flex items-center space-x-2 px-3 py-2 border-b-2 transition-colors flex-shrink-0 min-w-0 ${
-                                availableDirections.length > 2
-                                  ? "w-1/2"
-                                  : "flex-1"
-                              } ${
-                                activeTab === index
+                              className={`relative group flex items-center space-x-2 px-3 py-2 border-b-2 transition-colors shrink-0 min-w-0 ${availableDirections.length > 2
+                                ? "w-1/2"
+                                : "flex-1"
+                                } ${activeTab === index
                                   ? "border-primary text-primary bg-primary/5"
                                   : "border-transparent text-muted-foreground hover:text-foreground"
-                              }`}>
+                                }`}>
                               {getDirectionIcon(directionId)}
                               <span className="font-medium text-sm truncate">
                                 {shortLabel}

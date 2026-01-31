@@ -50,6 +50,8 @@ export function DataTable({
   showPagination = false,
   // Meta information
   meta = null,
+  // Entity name for dynamic text
+  entityName = "items",
 }) {
   const [selectedDataId, setSelectedDataId] = useState(null)
   const [localSearch, setLocalSearch] = useState(searchValue)
@@ -83,8 +85,8 @@ export function DataTable({
   // Handle row selection and hover events
   const handleRowClick = (row) => {
     setSelectedDataId(row.id)
-    console.log("Selected row data:", row.id)
-    onSelectData && onSelectData(row)
+    console.log("Selected row data:", row.original)
+    onSelectData && onSelectData(row.original)
   }
 
   const handleSearchChange = (event) => {
@@ -173,7 +175,7 @@ export function DataTable({
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search stops by name or ID..."
+            placeholder={`Search ${entityName} by name or ID...`}
             value={localSearch}
             onChange={handleSearchChange}
             className="w-full pl-10 pr-10"
@@ -246,8 +248,7 @@ export function DataTable({
                 )
               ) : (
                 <>
-                  <strong>{displayInfo.total}</strong> stop
-                  {displayInfo.total !== 1 ? "s" : ""}
+                  <strong>{displayInfo.total}</strong> {entityName}
                 </>
               )}
             </div>
@@ -301,7 +302,12 @@ export function DataTable({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleRowClick(row)
+                            }}
+                          >
                             <Eye className="mr-2 h-4 w-4" />
                             View Details
                           </DropdownMenuItem>
@@ -325,8 +331,8 @@ export function DataTable({
                   colSpan={columns.filter((col) => col.visible).length + 1}
                   className="h-24 text-center text-muted-foreground">
                   {searchValue
-                    ? "No stops found matching your search."
-                    : "No stops available."}
+                    ? `No ${entityName} found matching your search.`
+                    : `No ${entityName} available.`}
                 </TableCell>
               </TableRow>
             )}

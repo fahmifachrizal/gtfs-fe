@@ -8,9 +8,12 @@ import { UserProvider } from './contexts/UserContext';
 import HomeLayout from './layouts/HomeLayout';
 import EditorLayout from './layouts/EditorLayout';
 import Editor from './pages/Editor'; // This is the Projects List
-import EditorWelcome from './pages/editor/EditorWelcome'; // New component
+import EditorWelcome from './pages/editor/EditorWelcome';
 import StopsPage from './pages/editor/StopsPage';
 import RoutesPage from './pages/editor/RoutesPage';
+import TripsPage from './pages/editor/TripsPage';
+import CalendarPage from './pages/editor/CalendarPage';
+import FaresPage from './pages/editor/FaresPage';
 import PlaceholderPage from './pages/editor/PlaceholderPage';
 import { Toaster } from './components/ui/sonner';
 
@@ -34,15 +37,19 @@ function App() {
               <Route index element={<EditorWelcome />} />
               <Route path="stops" element={<StopsPage />} />
               <Route path="routes" element={<RoutesPage />} />
+              <Route path="trips" element={<TripsPage />} />
+              <Route path="calendar" element={<CalendarPage />} />
+              <Route path="fares" element={<FaresPage />} />
               <Route path="*" element={<PlaceholderPage />} />
             </Route>
 
           </Routes>
         </Router>
-        <Toaster position="top-center" />
+        <Toaster position="bottom-right" />
       </UserProvider>
     </ThemeProvider>
   );
 }
 
 export default App;
+

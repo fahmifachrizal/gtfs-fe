@@ -9,6 +9,7 @@ import { useEditorContext } from "@/contexts/EditorContext"
 import { useUser } from "@/contexts/UserContext"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
+import { StopDetail } from "@/components/details/StopDetail"
 
 export default function StopsPage() {
   const {
@@ -16,18 +17,50 @@ export default function StopsPage() {
     handleFetchData,
     handleHoverCoordinate,
     handleSelectData,
+    selectedData, // Access selectedData
+    setDetailView, // Access setDetailView
     getMeta,
     updateMeta,
     updateMapData,
     clearMap,
+    activeDetail // Get activeDetail to track sidebar state
   } = useEditorContext()
 
-  const { currentProject } = useUser()
+  const { currentProject, isAuthenticated } = useUser()
+
+  const handlePreview = (stop) => {
+    setPreviewStop(stop)
+  }
+
+  // Clear preview when detail is closed
+  useEffect(() => {
+    if (!activeDetail) {
+      setPreviewStop(null)
+    }
+  }, [activeDetail])
+
+  // Open Detail View when data is selected
+  useEffect(() => {
+    if (selectedData && selectedData.stop_id) {
+      setPreviewStop(null) // Clear any previous preview
+      setDetailView(
+        <StopDetail
+          stop={selectedData}
+          onPreview={handlePreview}
+          onSave={(saved) => {
+            handleSaveStop(saved)
+            setPreviewStop(null)
+          }}
+        />
+      )
+    }
+  }, [selectedData, setDetailView])
 
   const [isLoading, setIsLoading] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState(null)
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false)
+  const [previewStop, setPreviewStop] = useState(null)
 
   // Get current meta information for stops
   const stopsMeta = getMeta("stops")
@@ -81,31 +114,52 @@ export default function StopsPage() {
 
   // Update map when stops data changes
   useEffect(() => {
+    let features = []
+
     if (gtfsData.stops && gtfsData.stops.length > 0) {
-      const stopsGeoJSON = {
+      features = gtfsData.stops
+        .filter((stop) => stop.stop_lat && stop.stop_lon)
+        .map((stop) => ({
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: [stop.stop_lon, stop.stop_lat],
+          },
+          properties: {
+            stop_id: stop.stop_id,
+            stop_name: stop.stop_name || "Unknown Stop",
+            stop_code: stop.stop_code,
+            type: "stop",
+          },
+        }))
+    }
+
+    // Add preview stop if valid
+    if (previewStop && previewStop.stop_lat && previewStop.stop_lon) {
+      features.push({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [previewStop.stop_lon, previewStop.stop_lat],
+        },
+        properties: {
+          stop_id: "preview-stop",
+          stop_name: previewStop.stop_name || "New Stop (Preview)",
+          type: "stop",
+          isPreview: true, // Flag for styling
+        },
+      })
+    }
+
+    if (features.length > 0) {
+      updateMapData({
         type: "FeatureCollection",
-        features: gtfsData.stops
-          .filter((stop) => stop.stop_lat && stop.stop_lon)
-          .map((stop) => ({
-            type: "Feature",
-            geometry: {
-              type: "Point",
-              coordinates: [stop.stop_lon, stop.stop_lat],
-            },
-            properties: {
-              stop_id: stop.stop_id,
-              stop_name: stop.stop_name || "Unknown Stop",
-              stop_code: stop.stop_code,
-              type: "stop",
-            },
-          })),
-      }
-      updateMapData(stopsGeoJSON)
+        features,
+      })
     } else {
-      // Clear map if no stops
       updateMapData({ type: "FeatureCollection", features: [] })
     }
-  }, [gtfsData.stops, updateMapData])
+  }, [gtfsData.stops, previewStop, updateMapData])
 
   // Initial load effect
   useEffect(() => {
@@ -117,7 +171,7 @@ export default function StopsPage() {
 
   // Fetch when project changes or on mount
   useEffect(() => {
-    if (currentProject) {
+    if (currentProject && isAuthenticated) {
       // Only fetch if we haven't loaded yet OR if the current data belongs to a different project/context (simplified by just checking if data is failing)
       // But logic: if project changes, gtfsData might be stale. handleFetchData handles project_id in query.
       // We should fetch if not attempted yet.
@@ -125,12 +179,34 @@ export default function StopsPage() {
         fetchStops(1, searchValue)
       }
     }
-  }, [currentProject, hasAttemptedLoad])
+  }, [currentProject, isAuthenticated, hasAttemptedLoad])
+
+  const handleSaveStop = (savedStop) => {
+    // Refresh the list and search for the new stop to show it
+    fetchStops(1, savedStop.stop_name, true)
+    toast.success(`Stop "${savedStop.stop_name}" saved successfully`)
+  }
 
   const handleAddStop = () => {
-    // TODO: Implement add stop functionality
-    console.log("Add new stop")
-    toast.info("Add Stop feature coming soon")
+    setPreviewStop(null) // Clear any existing preview
+    const newStop = {
+      isNew: true,
+      stop_name: "",
+      stop_lat: "",
+      stop_lon: "",
+      stop_desc: "",
+      // Add other default fields if necessary
+    }
+    setDetailView(
+      <StopDetail
+        stop={newStop}
+        onSave={(saved) => {
+          handleSaveStop(saved)
+          setPreviewStop(null)
+        }}
+        onPreview={handlePreview}
+      />
+    )
   }
 
   const handleSearchChange = (newSearchValue) => {
@@ -159,9 +235,9 @@ export default function StopsPage() {
             <h2 className="text-2xl font-bold">Stops</h2>
             {isLoading && <span className="text-sm text-muted-foreground animate-pulse ml-2">Loading...</span>}
           </div>
-          <Button onClick={handleAddStop} size="sm">
+          <Button onClick={handleAddStop} size="sm" variant="ghost" className="text-foreground hover:bg-accent hover:text-accent-foreground">
             <Plus className="w-4 h-4 mr-2" />
-            Add Stop
+            <span className="font-medium">Add Stop</span>
           </Button>
         </div>
         <p className="text-muted-foreground mt-2">
@@ -195,6 +271,7 @@ export default function StopsPage() {
           onPageChange={handlePageChange}
           showPagination={showPagination}
           meta={stopsMeta}
+          entityName="stops"
         />
       </div>
     </div>

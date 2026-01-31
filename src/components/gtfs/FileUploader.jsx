@@ -168,7 +168,7 @@ const FileUploader = ({
             }
 
             if (onFileUpload) {
-                onFileUpload(selectedFile)
+                onFileUpload(selectedFile, projectToUse)
             }
 
         } catch (err) {
@@ -252,7 +252,15 @@ const FileUploader = ({
                 </div>
             ) : (
                 /* 2. FILE LIST + UPLOAD BUTTON */
-                <div className="w-full bg-background border rounded-lg p-0 overflow-hidden flex flex-col max-h-[300px]">
+                <div className="w-full bg-background border rounded-lg p-0 overflow-hidden flex flex-col max-h-75 relative">
+                    {/* Loading Overlay */}
+                    {loading && (
+                        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
+                            <p className="text-sm font-medium text-muted-foreground">Uploading GTFS Data...</p>
+                        </div>
+                    )}
+
                     {/* Header */}
                     <div className="p-3 border-b bg-muted/30 flex justify-between items-center shrink-0">
                         <div className="flex items-center overflow-hidden">
@@ -260,11 +268,11 @@ const FileUploader = ({
                                 <FileText className="w-4 h-4" />
                             </div>
                             <div className="flex flex-col min-w-0">
-                                <span className="font-medium text-sm truncate max-w-[200px]">{selectedFile.name}</span>
+                                <span className="font-medium text-sm truncate max-w-50">{selectedFile.name}</span>
                                 <span className="text-xs text-muted-foreground">{zipEntries.length} files detected</span>
                             </div>
                         </div>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-500" onClick={resetUpload}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-500" onClick={resetUpload} disabled={loading}>
                             <X className="w-4 h-4" />
                         </Button>
                     </div>
@@ -289,9 +297,7 @@ const FileUploader = ({
                             Cancel
                         </Button>
                         <Button size="sm" onClick={handleUploadExecution} disabled={loading} className="px-6">
-                            {loading ? (
-                                <>Processing...</>
-                            ) : (
+                            {loading ? "Processing..." : (
                                 <>
                                     <Upload className="w-4 h-4 mr-2" />
                                     Start Upload

@@ -163,7 +163,7 @@ export default function Home() {
             const { number, dir } = routeDef.apiParams
 
             const geojsonData = await request({
-              url: `/api/route?number=${number}&dir=${dir}`,
+              url: `/api/public/route?number=${number}&dir=${dir}`,
               method: 'GET'
             })
 

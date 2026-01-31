@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react"
-import { Plus, Upload, FolderPlus, Calendar, Clock, FileText, Trash2 } from "lucide-react"
+import { Plus, Upload, FolderPlus, Calendar, Clock, FileText, Trash2, Check } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import FileUploader from "../../components/gtfs/FileUploader"
 import { Button } from "@/components/ui/button"
@@ -45,6 +45,7 @@ export default function EditorWelcome() {
   // Import creation states
   const [importName, setImportName] = useState("")
   const [importDesc, setImportDesc] = useState("")
+  const [uploadedProject, setUploadedProject] = useState(null)
 
   const [creatingProject, setCreatingProject] = useState(false)
 
@@ -390,39 +391,71 @@ export default function EditorWelcome() {
 
               {/* IMPORT ZIP TAB */}
               <TabsContent value="import" className="space-y-4 pt-4">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="importName">Project Name *</Label>
-                    <Input
-                      id="importName"
-                      placeholder="Imported Project Name"
-                      value={importName}
-                      onChange={(e) => setImportName(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="importDesc">Description</Label>
-                    <Input
-                      id="importDesc"
-                      placeholder="Optional description"
-                      value={importDesc}
-                      onChange={(e) => setImportDesc(e.target.value)}
-                    />
-                  </div>
+                {!uploadedProject ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="importName">Project Name *</Label>
+                      <Input
+                        id="importName"
+                        placeholder="Imported Project Name"
+                        value={importName}
+                        onChange={(e) => setImportName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="importDesc">Description</Label>
+                      <Input
+                        id="importDesc"
+                        placeholder="Optional description"
+                        value={importDesc}
+                        onChange={(e) => setImportDesc(e.target.value)}
+                      />
+                    </div>
 
-                  <div className="pt-2">
-                    <Label className="mb-2 block">Upload GTFS Zip File</Label>
-                    <FileUploader
-                      projectName={importName}
-                      projectDescription={importDesc}
-                      showProjectForm={false}
-                      onFileUpload={() => {
-                        setShowStartModal(false)
-                        navigate("/editor/stops")
-                      }}
-                    />
+                    <div className="pt-2">
+                      <Label className="mb-2 block">Upload GTFS Zip File</Label>
+                      <FileUploader
+                        projectName={importName}
+                        projectDescription={importDesc}
+                        showProjectForm={false}
+                        onFileUpload={(file, project) => {
+                          setUploadedProject(project)
+                        }}
+                      />
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-6 space-y-4 text-center animate-in fade-in zoom-in duration-300">
+                    <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400">
+                      <Check className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold">Upload Complete!</h3>
+                      <p className="text-muted-foreground mt-1">
+                        Project <span className="font-medium text-foreground">"{uploadedProject.name}"</span> has been created with your GTFS data.
+                      </p>
+                    </div>
+                    <div className="pt-4 w-full">
+                      <Button
+                        size="lg"
+                        className="w-full bg-green-600 hover:bg-green-700"
+                        onClick={() => handleProjectSelect(uploadedProject)}
+                      >
+                        Open Project
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="mt-2 w-full text-muted-foreground"
+                        onClick={() => {
+                          setUploadedProject(null);
+                          resetModal();
+                        }}
+                      >
+                        Create Another
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </DialogContent>
