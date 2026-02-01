@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useMemo, useCallback } from "react"
 import { useUser } from "@/contexts/UserContext"
 import { getApiUrl } from "@/config/api"
+import { projectService } from "@/services/projectService"
 
 const EditorContext = createContext()
 
@@ -27,6 +28,10 @@ export function EditorProvider({ children }) {
   // Sidebar / Detail View State
   const [activeDetail, setActiveDetail] = useState(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
+
+  // Route Details State - centralized storage for route details with stops
+  const [routeDetails, setRouteDetails] = useState({})
+  const [loadingRouteDetails, setLoadingRouteDetails] = useState(new Set())
 
   const setDetailView = useCallback((content) => {
     setActiveDetail(content)
@@ -209,6 +214,91 @@ export function EditorProvider({ children }) {
       fare_attributes: [],
       shapes: [],
     })
+    setRouteDetails({})
+  }, [])
+
+  // Fetch route details with all directions and stops
+  const fetchRouteDetails = useCallback(async (routeId) => {
+    // Skip if already loaded or currently loading
+    if (routeDetails[routeId] || loadingRouteDetails.has(routeId)) {
+      return routeDetails[routeId]
+    }
+
+    const projectId = currentProject?.id || JSON.parse(localStorage.getItem('current_project') || '{}')?.id
+    if (!projectId) {
+      console.warn("[EditorContext] Cannot fetch route details: No project selected")
+      return null
+    }
+
+    setLoadingRouteDetails(prev => new Set([...prev, routeId]))
+
+    try {
+      const response = await projectService.getRouteDetails(projectId, routeId)
+
+      if (response.success && response.data?.route) {
+        const route = response.data.route
+        setRouteDetails(prev => ({
+          ...prev,
+          [routeId]: route,
+        }))
+
+        // Calculate bounds from stops for map centering
+        let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity
+        let hasStops = false
+
+        if (route.directions) {
+          Object.values(route.directions).forEach(directionStops => {
+            directionStops.forEach(stop => {
+              if (stop.stop_lat && stop.stop_lon) {
+                minLat = Math.min(minLat, stop.stop_lat)
+                maxLat = Math.max(maxLat, stop.stop_lat)
+                minLon = Math.min(minLon, stop.stop_lon)
+                maxLon = Math.max(maxLon, stop.stop_lon)
+                hasStops = true
+              }
+            })
+          })
+        }
+
+        if (hasStops) {
+          setMapBounds([[minLat, minLon], [maxLat, maxLon]])
+        }
+
+        return route
+      }
+    } catch (error) {
+      console.error("[EditorContext] Failed to fetch route details:", error)
+      // Store empty details to prevent repeated failed requests
+      setRouteDetails(prev => ({
+        ...prev,
+        [routeId]: { directions: {}, available_directions: [] },
+      }))
+    } finally {
+      setLoadingRouteDetails(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(routeId)
+        return newSet
+      })
+    }
+
+    return null
+  }, [currentProject, routeDetails, loadingRouteDetails])
+
+  // Update route stops in local state after editing/reordering
+  const updateRouteStops = useCallback((routeId, stops, directionId = 0) => {
+    setRouteDetails(prev => {
+      const existing = prev[routeId] || { directions: {} }
+      return {
+        ...prev,
+        [routeId]: {
+          ...existing,
+          directions: {
+            ...existing.directions,
+            [directionId]: stops,
+          },
+        },
+      }
+    })
   }, [])
 
   // Generate animation routes from mapData
@@ -289,6 +379,12 @@ export function EditorProvider({ children }) {
     handleHoverCoordinate,
     handleSelectData,
     resetEditorState,
+
+    // Route Details - centralized state for route stops and details
+    routeDetails,
+    loadingRouteDetails,
+    fetchRouteDetails,
+    updateRouteStops,
 
     // Detail View
     activeDetail,

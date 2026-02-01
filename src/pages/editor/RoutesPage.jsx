@@ -7,7 +7,6 @@ import RouteItem from "@/components/route-item"
 import { RouteDetail } from "@/components/details/RouteDetail"
 import { useEditorContext } from "@/contexts/EditorContext"
 import { useUser } from "@/contexts/UserContext"
-import { getApiUrl } from "@/config/api"
 
 export default function RoutesPage() {
   const {
@@ -22,14 +21,16 @@ export default function RoutesPage() {
     setMapBounds,
     setDetailView,
     activeDetail,
+    // Route details from context
+    routeDetails,
+    loadingRouteDetails,
+    fetchRouteDetails,
   } = useEditorContext()
 
   const { currentProject } = useUser();
 
   const [expandedRoutes, setExpandedRoutes] = useState(new Set())
-  const [routeDetails, setRouteDetails] = useState({})
   const [isLoading, setIsLoading] = useState(false)
-  const [isLoadingDetails, setIsLoadingDetails] = useState(new Set())
   const [localSearch, setLocalSearch] = useState("")
   const [selectedRouteForMap, setSelectedRouteForMap] = useState(null)
 
@@ -100,101 +101,6 @@ export default function RoutesPage() {
     }
   }
 
-  // Fetch route details with all directions
-  const fetchRouteDetails = async (routeId) => {
-    if (routeDetails[routeId] || isLoadingDetails.has(routeId)) return
-
-    setIsLoadingDetails((prev) => new Set([...prev, routeId]))
-
-    try {
-      // Assuming currentProject is needed for context in API if not handled elsewhere
-      // The original scratch code used direct fetch to `/api/gtfs/routes/${routeId}`.
-      // We need to ensure we pass the auth header/token as scratch did?
-      // Scratch used `const response = await fetch(...)` but didn't import `user`.
-      // Wait, scratch's `EditorContext.js` had `user.token`. `RoutesPage.js` didn't seem to pass headers?
-      // Let's re-read scratch `RoutesPage`.
-      // Ah, scratch `RoutesPage` did NOT pass headers in `fetchRouteDetails`. Maybe middleware handled it or it failed?
-      // Or `EditorContext` wrapper handled it? No, it used `fetch`.
-      // I should use `user.token` here just to be safe.
-
-      const { user } = useUser(); // Hook rules... can't use here.
-      // I should modify component to get user/token.
-    } catch (ignore) { }
-    // ...
-  }
-  // WAIT. I can't look inside a nested function for hook.
-  // I need to use `useUser` at top level.
-
-  // Refetch Logic with Auth
-  const { user } = useUser();
-
-  const fetchRouteDetailsSafe = async (routeId) => {
-    if (routeDetails[routeId] || isLoadingDetails.has(routeId)) return
-
-    setIsLoadingDetails((prev) => new Set([...prev, routeId]))
-
-    try {
-      const token = user?.token || localStorage.getItem('auth_token');
-      const projectId = currentProject?.id || JSON.parse(localStorage.getItem('current_project') || '{}')?.id;
-
-      // Construct query with project_id if needed
-      const query = projectId ? `?project_id=${projectId}` : "";
-      const fullUrl = getApiUrl(`/api/gtfs/routes/${routeId}${query}`);
-      const response = await fetch(fullUrl, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        }
-      })
-      const data = await response.json()
-
-      if (data.success && data.data.route) {
-        const route = data.data.route
-        setRouteDetails((prev) => ({
-          ...prev,
-          [routeId]: route,
-        }))
-
-        // Calculate bounds from stops
-        let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity
-        let hasStops = false
-
-        const allStops = []
-        if (route.directions) {
-          Object.values(route.directions).forEach(directionStops => {
-            directionStops.forEach(stop => {
-              if (stop.stop_lat && stop.stop_lon) {
-                allStops.push(stop)
-                minLat = Math.min(minLat, stop.stop_lat)
-                maxLat = Math.max(maxLat, stop.stop_lat)
-                minLon = Math.min(minLon, stop.stop_lon)
-                maxLon = Math.max(maxLon, stop.stop_lon)
-                hasStops = true
-              }
-            })
-          })
-        }
-
-        if (hasStops) {
-          setMapBounds([[minLat, minLon], [maxLat, maxLon]])
-        }
-      }
-    } catch (error) {
-      setRouteDetails((prev) => ({
-        ...prev,
-        [routeId]: { directions: {}, available_directions: [] },
-      }))
-    } finally {
-      setIsLoadingDetails((prev) => {
-        const newSet = new Set(prev)
-        newSet.delete(routeId)
-        return newSet
-      })
-    }
-  }
-
-
-
 
   // Initial load and map reset
   useEffect(() => {
@@ -246,7 +152,7 @@ export default function RoutesPage() {
       newExpanded.add(routeId)
 
       // Fetch route details when expanding for the first time
-      await fetchRouteDetailsSafe(routeId)
+      await fetchRouteDetails(routeId)
 
       // Set this route as selected for highlighting (optional future enhancement)
       setSelectedRouteForMap(routeId)
@@ -272,9 +178,25 @@ export default function RoutesPage() {
   }
 
   const handleEditRoute = (route) => {
+    // Extract stops from context's routeDetails if available
+    const details = routeDetails[route.route_id]
+    let initialStops = []
+    if (details?.directions) {
+      // Flatten all direction stops into a single array with direction_id
+      Object.entries(details.directions).forEach(([directionId, stops]) => {
+        stops.forEach(stop => {
+          initialStops.push({
+            ...stop,
+            direction_id: parseInt(directionId)
+          })
+        })
+      })
+    }
+
     setDetailView(
       <RouteDetail
         route={route}
+        initialStops={initialStops}
         onSave={handleSaveRoute}
         onClose={() => setDetailView(null)}
       />
@@ -495,7 +417,7 @@ export default function RoutesPage() {
                 route={route}
                 details={routeDetails[route.route_id] || {}}
                 isExpanded={expandedRoutes.has(route.route_id)}
-                isLoadingDetails={isLoadingDetails.has(route.route_id)}
+                isLoadingDetails={loadingRouteDetails.has(route.route_id)}
                 onToggle={() => toggleRoute(route.route_id)}
                 onStopClick={handleStopClick}
                 onEdit={() => handleEditRoute(route)}

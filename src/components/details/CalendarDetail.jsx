@@ -2,19 +2,18 @@ import { projectService } from "@/services/projectService"
 import { useUser } from "@/contexts/UserContext"
 import { toast } from "sonner"
 import { useState, useEffect } from "react"
-import { Calendar, Save } from "lucide-react"
+import { Calendar } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Layout } from "@/components/details/Layout"
+import { DetailLayout } from "./DetailLayout"
 
 export function CalendarDetail({ calendar, onSave }) {
     const { currentProject } = useUser()
     const [loading, setLoading] = useState(false)
 
-    const [serviceId, setServiceId] = useState(calendar.service_id || "")
-    const [days, setDays] = useState({
+    const [formData, setFormData] = useState({
+        service_id: calendar.service_id || "",
         monday: calendar.monday === 1,
         tuesday: calendar.tuesday === 1,
         wednesday: calendar.wednesday === 1,
@@ -22,13 +21,23 @@ export function CalendarDetail({ calendar, onSave }) {
         friday: calendar.friday === 1,
         saturday: calendar.saturday === 1,
         sunday: calendar.sunday === 1,
+        start_date: calendar.start_date || "",
+        end_date: calendar.end_date || "",
     })
-    const [startDate, setStartDate] = useState(calendar.start_date || "")
-    const [endDate, setEndDate] = useState(calendar.end_date || "")
+
+    // Generate ID for new calendars
+    useEffect(() => {
+        if (calendar.isNew && !formData.service_id) {
+            setFormData(prev => ({
+                ...prev,
+                service_id: `SVC-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+            }))
+        }
+    }, [calendar.isNew])
 
     useEffect(() => {
-        setServiceId(calendar.service_id || "")
-        setDays({
+        setFormData({
+            service_id: calendar.service_id || formData.service_id,
             monday: calendar.monday === 1,
             tuesday: calendar.tuesday === 1,
             wednesday: calendar.wednesday === 1,
@@ -36,33 +45,35 @@ export function CalendarDetail({ calendar, onSave }) {
             friday: calendar.friday === 1,
             saturday: calendar.saturday === 1,
             sunday: calendar.sunday === 1,
+            start_date: calendar.start_date || "",
+            end_date: calendar.end_date || "",
         })
-        setStartDate(calendar.start_date || "")
-        setEndDate(calendar.end_date || "")
     }, [calendar])
 
-    if (!calendar) return null
-
     const toggleDay = (day) => {
-        setDays(prev => ({ ...prev, [day]: !prev[day] }))
+        setFormData(prev => ({ ...prev, [day]: !prev[day] }))
+    }
+
+    const handleChange = (field, value) => {
+        setFormData(prev => ({ ...prev, [field]: value }))
     }
 
     const handleSubmit = async (e) => {
-        e.preventDefault()
+        e?.preventDefault()
         setLoading(true)
 
         try {
             const calendarData = {
-                service_id: serviceId,
-                monday: days.monday ? 1 : 0,
-                tuesday: days.tuesday ? 1 : 0,
-                wednesday: days.wednesday ? 1 : 0,
-                thursday: days.thursday ? 1 : 0,
-                friday: days.friday ? 1 : 0,
-                saturday: days.saturday ? 1 : 0,
-                sunday: days.sunday ? 1 : 0,
-                start_date: startDate,
-                end_date: endDate,
+                service_id: formData.service_id,
+                monday: formData.monday ? 1 : 0,
+                tuesday: formData.tuesday ? 1 : 0,
+                wednesday: formData.wednesday ? 1 : 0,
+                thursday: formData.thursday ? 1 : 0,
+                friday: formData.friday ? 1 : 0,
+                saturday: formData.saturday ? 1 : 0,
+                sunday: formData.sunday ? 1 : 0,
+                start_date: formData.start_date,
+                end_date: formData.end_date,
             }
 
             let result
@@ -73,13 +84,11 @@ export function CalendarDetail({ calendar, onSave }) {
             }
 
             if (result.success) {
+                toast.success(`Service "${result.data.service_id}" saved`)
                 if (onSave) onSave(result.data)
-            } else {
-                toast.error(result.message || "Failed to save calendar")
             }
         } catch (error) {
-            console.error("Failed to save calendar:", error)
-            toast.error(error.message || "An error occurred while saving")
+            toast.error(error.message || "Failed to save calendar")
         } finally {
             setLoading(false)
         }
@@ -89,26 +98,22 @@ export function CalendarDetail({ calendar, onSave }) {
     const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-3 h-full flex flex-col">
-            <div className="space-y-1 flex-none border-b pb-3">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                    <Calendar className="h-3 w-3" />
-                    <span className="text-[10px] uppercase tracking-wider font-semibold">
-                        {calendar.isNew ? "New Service" : "Service Details"}
-                    </span>
-                </div>
-                <h2 className="text-lg font-bold truncate leading-tight">
-                    {calendar.isNew ? "Create Service" : calendar.service_id}
-                </h2>
-            </div>
-
-            <div className="flex flex-col gap-2.5 flex-1 overflow-y-auto px-1">
+        <DetailLayout
+            icon={Calendar}
+            label={calendar.isNew ? "New Service" : "Service Details"}
+            title={calendar.isNew ? "Create Service" : calendar.service_id}
+            onSave={handleSubmit}
+            loading={loading}
+        >
+            <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
                 <div className="grid gap-1">
-                    <Label htmlFor="service_id" className="text-[10px] font-semibold text-muted-foreground uppercase">Service ID <span className="text-destructive">*</span></Label>
+                    <Label htmlFor="service_id" className="text-[10px] font-semibold text-muted-foreground uppercase">
+                        Service ID <span className="text-destructive">*</span>
+                    </Label>
                     <Input
                         id="service_id"
-                        value={serviceId}
-                        onChange={(e) => setServiceId(e.target.value.toUpperCase())}
+                        value={formData.service_id}
+                        onChange={(e) => handleChange("service_id", e.target.value.toUpperCase())}
                         required
                         disabled={!calendar.isNew}
                         className="h-7 text-xs font-mono"
@@ -122,7 +127,7 @@ export function CalendarDetail({ calendar, onSave }) {
                             <div key={day} className="flex items-center gap-1.5">
                                 <Checkbox
                                     id={day}
-                                    checked={days[day]}
+                                    checked={formData[day]}
                                     onCheckedChange={() => toggleDay(day)}
                                 />
                                 <Label htmlFor={day} className="text-xs cursor-pointer">{dayLabels[i]}</Label>
@@ -133,11 +138,13 @@ export function CalendarDetail({ calendar, onSave }) {
 
                 <div className="grid grid-cols-2 gap-2.5">
                     <div className="grid gap-1">
-                        <Label htmlFor="start_date" className="text-[10px] font-semibold text-muted-foreground uppercase">Start Date <span className="text-destructive">*</span></Label>
+                        <Label htmlFor="start_date" className="text-[10px] font-semibold text-muted-foreground uppercase">
+                            Start Date <span className="text-destructive">*</span>
+                        </Label>
                         <Input
                             id="start_date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
+                            value={formData.start_date}
+                            onChange={(e) => handleChange("start_date", e.target.value)}
                             placeholder="YYYYMMDD"
                             pattern="\d{8}"
                             required
@@ -145,11 +152,13 @@ export function CalendarDetail({ calendar, onSave }) {
                         />
                     </div>
                     <div className="grid gap-1">
-                        <Label htmlFor="end_date" className="text-[10px] font-semibold text-muted-foreground uppercase">End Date <span className="text-destructive">*</span></Label>
+                        <Label htmlFor="end_date" className="text-[10px] font-semibold text-muted-foreground uppercase">
+                            End Date <span className="text-destructive">*</span>
+                        </Label>
                         <Input
                             id="end_date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
+                            value={formData.end_date}
+                            onChange={(e) => handleChange("end_date", e.target.value)}
                             placeholder="YYYYMMDD"
                             pattern="\d{8}"
                             required
@@ -157,14 +166,7 @@ export function CalendarDetail({ calendar, onSave }) {
                         />
                     </div>
                 </div>
-            </div>
-
-            <div className="pt-2 border-t mt-auto flex-none">
-                <Button type="submit" className="w-full h-8 text-xs font-medium" disabled={loading}>
-                    <Save className="w-3 h-3 mr-2" />
-                    {loading ? "Saving..." : "Save Changes"}
-                </Button>
-            </div>
-        </form>
+            </form>
+        </DetailLayout>
     )
 }

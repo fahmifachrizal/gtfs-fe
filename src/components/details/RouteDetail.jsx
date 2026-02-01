@@ -1,5 +1,6 @@
 import { projectService } from "@/services/projectService"
 import { useUser } from "@/contexts/UserContext"
+import { useEditorContext } from "@/contexts/EditorContext"
 import { toast } from "sonner"
 import { useState, useEffect } from "react"
 import { Route, Save, Search, Plus, GripVertical, X, AlertCircle } from "lucide-react"
@@ -25,7 +26,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Layout } from "@/components/details/Layout"
+import { DetailLayout } from "@/components/details/DetailLayout"
 
 // GTFS Route Types
 const ROUTE_TYPES = [
@@ -39,8 +40,9 @@ const ROUTE_TYPES = [
     { value: "7", label: "Funicular" },
 ]
 
-export function RouteDetail({ route, onSave, onClose }) {
+export function RouteDetail({ route, initialStops, onSave, onClose }) {
     const { currentProject } = useUser()
+    const { updateRouteStops } = useEditorContext()
     const [loading, setLoading] = useState(false)
     const [step, setStep] = useState(route?.route_id ? 2 : 1) // Step 1: Route details, Step 2: Stop assignment
     const [agencies, setAgencies] = useState([])
@@ -55,6 +57,7 @@ export function RouteDetail({ route, onSave, onClose }) {
         route_desc: route?.route_desc || "",
         route_type: route?.route_type?.toString() || "3",
         agency_id: route?.agency_id || "",
+        agency_name: route?.agency?.agency_name || "",
         route_color: route?.route_color || "FFFFFF",
         route_text_color: route?.route_text_color || "000000",
         route_url: route?.route_url || "",
@@ -83,19 +86,28 @@ export function RouteDetail({ route, onSave, onClose }) {
         }
     }, [currentProject])
 
-    // Load assigned stops if editing an existing route
+    // Load assigned stops - prefer initialStops from context, fallback to API fetch
     useEffect(() => {
+        if (initialStops && initialStops.length > 0) {
+            // Use pre-fetched stops from context
+            setAssignedStops(initialStops)
+            return
+        }
+
         if (currentProject && route?.route_id) {
             const fetchRouteStops = async () => {
                 try {
                     const response = await projectService.getRouteStops(currentProject.id, route.route_id)
+
                     if (response.success && response.data) {
                         // Backend returns RouteStop[] with includes Stop
-                        const mappedStops = response.data.map(rs => ({
-                            ...rs.stop,
-                            stop_sequence: rs.stop_sequence,
-                            direction_id: rs.direction_id ?? 0 // Default to 0 if missing
-                        }))
+                        const mappedStops = response.data
+                            .filter(rs => rs.stop) // Filter out records with missing stop relation
+                            .map(rs => ({
+                                ...rs.stop,
+                                stop_sequence: rs.stop_sequence,
+                                direction_id: rs.direction_id ?? 0
+                            }))
                         setAssignedStops(mappedStops)
                     }
                 } catch (error) {
@@ -105,7 +117,7 @@ export function RouteDetail({ route, onSave, onClose }) {
             }
             fetchRouteStops()
         }
-    }, [currentProject, route])
+    }, [currentProject, route, initialStops])
 
     const fetchAgencies = async () => {
         try {
@@ -314,8 +326,7 @@ export function RouteDetail({ route, onSave, onClose }) {
             setHasUnsavedChanges(false)
             if (onSave) onSave(savedRoute)
 
-            // Optional: Re-fetch or we can trust our local state if backend returns success
-            // Ideally we re-fetch to ensure sync with DB generated IDs if any
+            // Re-fetch to sync with DB and update context state
             const response = await projectService.getRouteStops(currentProject.id, savedRoute.route_id)
             if (response.success && response.data) {
                 const mappedStops = response.data.map(rs => ({
@@ -324,6 +335,9 @@ export function RouteDetail({ route, onSave, onClose }) {
                     direction_id: rs.direction_id ?? 0
                 }))
                 setAssignedStops(mappedStops)
+
+                // Update context state so RoutesPage map display is synced
+                updateRouteStops(savedRoute.route_id, mappedStops, selectedDirection)
             }
 
         } catch (error) {
@@ -349,12 +363,13 @@ export function RouteDetail({ route, onSave, onClose }) {
     // Step 1: Route Details Form
     if (step === 1) {
         return (
-            <Layout
+            <DetailLayout
                 icon={Route}
                 label={route ? "Edit Route" : "New Route"}
                 title={route ? route.route_short_name || route.route_long_name : "Create Route"}
                 onClose={handleCloseAttempt}
-                footer={
+                showSaveButton={false}
+                customFooter={
                     <>
                         <Button type="button" variant="outline" onClick={handleCloseAttempt} disabled={loading} className="flex-1 h-8 text-xs font-medium">Cancel</Button>
                         <Button type="submit" form="route-form" className="flex-1 h-8 text-xs font-medium" disabled={loading}>
@@ -365,69 +380,84 @@ export function RouteDetail({ route, onSave, onClose }) {
                 }
             >
                 <form id="route-form" onSubmit={handleSubmitRouteDetails} className="flex flex-col gap-2.5 flex-1 overflow-y-auto px-1">
-                    <div className="grid grid-cols-2 gap-2.5">
-                        <div className="grid gap-1">
-                            <Label htmlFor="route_id" className="text-[10px] font-semibold text-muted-foreground uppercase">
-                                Route ID {!route && <span className="text-xs">(optional)</span>}
-                            </Label>
-                            <Input
-                                id="route_id"
-                                value={formData.route_id}
-                                onChange={(e) => handleChange("route_id", e.target.value)}
-                                placeholder="Auto-generated"
-                                disabled={!!route}
-                                className="h-7 text-xs font-mono"
-                            />
-                        </div>
+                    {/* 1. route_id - Required for all routes */}
+                    <div className="grid gap-1">
+                        <Label htmlFor="route_id" className="text-[10px] font-semibold text-muted-foreground uppercase">
+                            Route ID {!route && <span className="text-xs">(optional)</span>}
+                        </Label>
+                        <Input
+                            id="route_id"
+                            value={formData.route_id}
+                            onChange={(e) => handleChange("route_id", e.target.value)}
+                            placeholder="Auto-generated"
+                            disabled={!!route}
+                            className="h-7 text-xs font-mono"
+                        />
+                    </div>
 
-                        <div className="grid gap-1">
-                            <Label htmlFor="route_type" className="text-[10px] font-semibold text-muted-foreground uppercase">
-                                Type <span className="text-destructive">*</span>
-                            </Label>
+                    {/* 2. agency_id - Conditionally required */}
+                    <div className="grid gap-1">
+                        <Label htmlFor="agency_id" className="text-[10px] font-semibold text-muted-foreground uppercase">
+                            Agency
+                        </Label>
+                        {agencies.length > 0 ? (
                             <Select
-                                value={formData.route_type}
-                                onValueChange={(value) => handleChange("route_type", value)}
+                                value={formData.agency_id}
+                                onValueChange={(value) => handleChange("agency_id", value)}
                             >
-                                <SelectTrigger id="route_type" className="h-7 text-xs">
-                                    <SelectValue placeholder="Select type" />
+                                <SelectTrigger id="agency_id" className="h-7 text-xs">
+                                    <SelectValue placeholder="Select agency" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {ROUTE_TYPES.map((type) => (
-                                        <SelectItem key={type.value} value={type.value} className="text-xs">
-                                            {type.label}
+                                    <SelectItem value="" className="text-xs">No agency</SelectItem>
+                                    {agencies.map((agency) => (
+                                        <SelectItem key={agency.agency_id} value={agency.agency_id} className="text-xs">
+                                            {agency.agency_name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
+                        ) : (
+                            <Input
+                                id="agency_name"
+                                value={formData.agency_name}
+                                onChange={(e) => handleChange("agency_name", e.target.value)}
+                                placeholder="e.g., City Transit Authority"
+                                className="h-7 text-xs"
+                            />
+                        )}
+                    </div>
+
+                    {/* 3 & 4. route_short_name & route_long_name - Conditionally required */}
+                    <div className="grid grid-cols-2 gap-2.5">
+                        <div className="grid gap-1">
+                            <Label htmlFor="route_short_name" className="text-[10px] font-semibold text-muted-foreground uppercase">
+                                Short Name
+                            </Label>
+                            <Input
+                                id="route_short_name"
+                                value={formData.route_short_name}
+                                onChange={(e) => handleChange("route_short_name", e.target.value)}
+                                placeholder="e.g., 101"
+                                className="h-7 text-xs"
+                            />
+                        </div>
+
+                        <div className="grid gap-1">
+                            <Label htmlFor="route_long_name" className="text-[10px] font-semibold text-muted-foreground uppercase">
+                                Long Name
+                            </Label>
+                            <Input
+                                id="route_long_name"
+                                value={formData.route_long_name}
+                                onChange={(e) => handleChange("route_long_name", e.target.value)}
+                                placeholder="e.g., Downtown Express"
+                                className="h-7 text-xs"
+                            />
                         </div>
                     </div>
 
-                    <div className="grid gap-1">
-                        <Label htmlFor="route_short_name" className="text-[10px] font-semibold text-muted-foreground uppercase">
-                            Short Name
-                        </Label>
-                        <Input
-                            id="route_short_name"
-                            value={formData.route_short_name}
-                            onChange={(e) => handleChange("route_short_name", e.target.value)}
-                            placeholder="e.g., 101"
-                            className="h-7 text-xs"
-                        />
-                    </div>
-
-                    <div className="grid gap-1">
-                        <Label htmlFor="route_long_name" className="text-[10px] font-semibold text-muted-foreground uppercase">
-                            Long Name
-                        </Label>
-                        <Input
-                            id="route_long_name"
-                            value={formData.route_long_name}
-                            onChange={(e) => handleChange("route_long_name", e.target.value)}
-                            placeholder="e.g., Downtown Express"
-                            className="h-7 text-xs"
-                        />
-                    </div>
-
+                    {/* 5. route_desc - Optional */}
                     <div className="grid gap-1">
                         <Label htmlFor="route_desc" className="text-[10px] font-semibold text-muted-foreground uppercase">
                             Description
@@ -442,6 +472,44 @@ export function RouteDetail({ route, onSave, onClose }) {
                         />
                     </div>
 
+                    {/* 6. route_type - Required */}
+                    <div className="grid gap-1">
+                        <Label htmlFor="route_type" className="text-[10px] font-semibold text-muted-foreground uppercase">
+                            Type <span className="text-destructive">*</span>
+                        </Label>
+                        <Select
+                            value={formData.route_type}
+                            onValueChange={(value) => handleChange("route_type", value)}
+                        >
+                            <SelectTrigger id="route_type" className="h-7 text-xs">
+                                <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {ROUTE_TYPES.map((type) => (
+                                    <SelectItem key={type.value} value={type.value} className="text-xs">
+                                        {type.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {/* 7. route_url - Optional */}
+                    <div className="grid gap-1">
+                        <Label htmlFor="route_url" className="text-[10px] font-semibold text-muted-foreground uppercase">
+                            Route URL
+                        </Label>
+                        <Input
+                            id="route_url"
+                            type="url"
+                            value={formData.route_url}
+                            onChange={(e) => handleChange("route_url", e.target.value)}
+                            placeholder="https://..."
+                            className="h-7 text-xs"
+                        />
+                    </div>
+
+                    {/* 8 & 9. route_color & route_text_color - Optional */}
                     <div className="grid grid-cols-2 gap-2.5">
                         <div className="grid gap-1">
                             <Label htmlFor="route_color" className="text-[10px] font-semibold text-muted-foreground uppercase">
@@ -489,44 +557,7 @@ export function RouteDetail({ route, onSave, onClose }) {
                         </div>
                     </div>
 
-                    {agencies.length > 0 && (
-                        <div className="grid gap-1">
-                            <Label htmlFor="agency_id" className="text-[10px] font-semibold text-muted-foreground uppercase">
-                                Agency
-                            </Label>
-                            <Select
-                                value={formData.agency_id}
-                                onValueChange={(value) => handleChange("agency_id", value)}
-                            >
-                                <SelectTrigger id="agency_id" className="h-7 text-xs">
-                                    <SelectValue placeholder="Select agency" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="" className="text-xs">No agency</SelectItem>
-                                    {agencies.map((agency) => (
-                                        <SelectItem key={agency.agency_id} value={agency.agency_id} className="text-xs">
-                                            {agency.agency_name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    )}
-
-                    <div className="grid gap-1">
-                        <Label htmlFor="route_url" className="text-[10px] font-semibold text-muted-foreground uppercase">
-                            Route URL
-                        </Label>
-                        <Input
-                            id="route_url"
-                            type="url"
-                            value={formData.route_url}
-                            onChange={(e) => handleChange("route_url", e.target.value)}
-                            placeholder="https://..."
-                            className="h-7 text-xs"
-                        />
-                    </div>
-
+                    {/* 10. route_sort_order - Optional */}
                     <div className="grid gap-1">
                         <Label htmlFor="route_sort_order" className="text-[10px] font-semibold text-muted-foreground uppercase">
                             Sort Order
@@ -556,19 +587,20 @@ export function RouteDetail({ route, onSave, onClose }) {
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
-            </Layout>
+            </DetailLayout>
         )
     }
 
     // Step 2: Stop Assignment
     return (
-        <Layout
+        <DetailLayout
             icon={Route}
             label="Route Stops"
             title={savedRoute?.route_short_name || savedRoute?.route_long_name}
             description={savedRoute?.route_desc}
             onClose={handleCloseAttempt}
-            footer={
+            showSaveButton={false}
+            customFooter={
                 <>
                     <Button type="button" variant="outline" onClick={handleCloseAttempt} disabled={loading} className="flex-1 h-8 text-xs font-medium">Close</Button>
                     <Button type="button" onClick={handleSaveStops} className="flex-1 h-8 text-xs font-medium" disabled={loading || assignedStops.length === 0}>
@@ -698,6 +730,6 @@ export function RouteDetail({ route, onSave, onClose }) {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </Layout>
+        </DetailLayout>
     )
 }

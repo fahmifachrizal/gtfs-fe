@@ -77,6 +77,14 @@ export const projectService = {
         });
     },
 
+    // Get route details with directions and stops for map display
+    getRouteDetails: async (projectId, routeId) => {
+        return request({
+            url: `/api/gtfs/routes/${routeId}?project_id=${projectId}`,
+            method: 'GET'
+        });
+    },
+
     // Agencies
     getAgencies: async (projectId) => {
         return request({

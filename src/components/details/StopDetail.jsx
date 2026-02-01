@@ -2,178 +2,204 @@ import { projectService } from "@/services/projectService"
 import { useUser } from "@/contexts/UserContext"
 import { toast } from "sonner"
 import { useState, useEffect } from "react"
-import { MapPin, Save } from "lucide-react"
+import { MapPin } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Button } from "@/components/ui/button"
-import { Layout } from "@/components/details/Layout"
+import { DetailLayout } from "./DetailLayout"
 
 export function StopDetail({ stop, onSave, onPreview }) {
-    const { currentProject } = useUser()
-    const [loading, setLoading] = useState(false)
+  const { currentProject } = useUser()
+  const [loading, setLoading] = useState(false)
 
-    // Controlled state for inputs to support preview
-    const [lat, setLat] = useState(stop.stop_lat || "")
-    const [lon, setLon] = useState(stop.stop_lon || "")
-    const [id, setId] = useState(stop.stop_id || (stop.isNew ? Math.random().toString(36).substring(2, 10).toUpperCase() : ""))
+  // Controlled state for inputs
+  const [formData, setFormData] = useState({
+    stop_id: stop.stop_id || "",
+    stop_code: stop.stop_code || "",
+    stop_name: stop.stop_name || "",
+    stop_lat: stop.stop_lat || "",
+    stop_lon: stop.stop_lon || "",
+    stop_desc: stop.stop_desc || "",
+  })
 
-    // Sync state when stop prop changes
-    useEffect(() => {
-        setLat(stop.stop_lat || "")
-        setLon(stop.stop_lon || "")
-
-        if (stop.isNew) {
-            setId(stop.stop_id || Math.random().toString(36).substring(2, 10).toUpperCase())
-        } else {
-            setId(stop.stop_id)
-        }
-    }, [stop])
-
-    // Trigger preview when lat/lon change
-    const handleCoordinateChange = (newLat, newLon) => {
-        if (onPreview && newLat && newLon && !isNaN(newLat) && !isNaN(newLon)) {
-            onPreview({
-                ...stop,
-                stop_lat: parseFloat(newLat),
-                stop_lon: parseFloat(newLon),
-                isNew: stop.isNew // Pass down isNew status
-            })
-        }
+  // Generate ID for new stops
+  useEffect(() => {
+    if (stop.isNew && !formData.stop_id) {
+      setFormData(prev => ({
+        ...prev,
+        stop_id: Math.random().toString(36).substring(2, 10).toUpperCase()
+      }))
     }
+  }, [stop.isNew])
 
-    if (!stop) return null
+  // Sync with prop changes
+  useEffect(() => {
+    setFormData({
+      stop_id: stop.stop_id || formData.stop_id,
+      stop_code: stop.stop_code || "",
+      stop_name: stop.stop_name || "",
+      stop_lat: stop.stop_lat || "",
+      stop_lon: stop.stop_lon || "",
+      stop_desc: stop.stop_desc || "",
+    })
+  }, [stop])
 
-    const handleSubmit = async (e) => {
-        e.preventDefault()
-        setLoading(true)
+  // Trigger preview when coordinates change
+  const handleCoordinateChange = (field, value) => {
+    const newData = { ...formData, [field]: value }
+    setFormData(newData)
 
-        try {
-            const formData = new FormData(e.target)
-            const stopData = {
-                stop_id: id,
-                stop_code: formData.get("stop_code"),
-                stop_name: formData.get("stop_name"),
-                stop_lat: parseFloat(formData.get("lat")),
-                stop_lon: parseFloat(formData.get("lon")),
-                stop_desc: formData.get("desc"),
-            }
-
-            let result
-            if (stop.isNew) {
-                // Create new stop
-                result = await projectService.createStop(currentProject.id, stopData)
-            } else {
-                // Update existing stop
-                result = await projectService.updateStop(currentProject.id, stop.stop_id, stopData)
-            }
-
-            if (result.success) {
-                if (onSave) onSave(result.data)
-            } else {
-                toast.error(result.message || "Failed to save stop")
-            }
-        } catch (error) {
-            console.error("Failed to save stop:", error)
-            toast.error(error.message || "An error occurred while saving")
-        } finally {
-            setLoading(false)
-        }
+    if (onPreview && newData.stop_lat && newData.stop_lon) {
+      const lat = parseFloat(newData.stop_lat)
+      const lon = parseFloat(newData.stop_lon)
+      if (!isNaN(lat) && !isNaN(lon)) {
+        onPreview({
+          ...stop,
+          ...newData,
+          stop_lat: lat,
+          stop_lon: lon,
+        })
+      }
     }
+  }
 
-    return (
-        <Layout
-            icon={MapPin}
-            label={stop.isNew ? "New Stop" : "Stop Details"}
-            title={stop.isNew ? "Create Stop" : stop.stop_name}
-            footer={
-                <Button type="submit" form="stop-form" className="w-full h-8 text-xs font-medium" disabled={loading}>
-                    <Save className="w-3 h-3 mr-2" />
-                    {loading ? "Saving..." : "Save Changes"}
-                </Button>
-            }
-        >
-            <form id="stop-form" onSubmit={handleSubmit} className="flex flex-col gap-2.5 flex-1 overflow-y-auto px-1">
-                <div className="grid grid-cols-2 gap-2.5">
-                    <div className="grid gap-1">
-                        <Label htmlFor="stop_id" className="text-[10px] font-semibold text-muted-foreground uppercase">ID <span className="text-destructive">*</span></Label>
-                        <Input
-                            id="stop_id"
-                            value={id}
-                            onChange={(e) => setId(e.target.value.toUpperCase())}
-                            maxLength={8}
-                            required
-                            className="h-7 text-xs font-mono"
-                        />
-                    </div>
-                    <div className="grid gap-1">
-                        <Label htmlFor="stop_code" className="text-[10px] font-semibold text-muted-foreground uppercase">Code</Label>
-                        <Input
-                            id="stop_code"
-                            name="stop_code"
-                            defaultValue={stop.stop_code}
-                            maxLength={10}
-                            className="h-7 text-xs font-mono"
-                        />
-                    </div>
-                </div>
+  const handleChange = (field, value) => {
+    if (field === 'stop_lat' || field === 'stop_lon') {
+      handleCoordinateChange(field, value)
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }))
+    }
+  }
 
-                <div className="grid gap-1">
-                    <Label htmlFor="stop_name" className="text-[10px] font-semibold text-muted-foreground uppercase">Name <span className="text-destructive">*</span></Label>
-                    <Input id="stop_name" name="stop_name" defaultValue={stop.stop_name} required className="h-7 text-xs" />
-                </div>
+  const handleSubmit = async (e) => {
+    e?.preventDefault()
+    setLoading(true)
 
-                <div className="grid grid-cols-2 gap-2.5">
-                    <div className="grid gap-1">
-                        <Label htmlFor="lat" className="text-[10px] font-semibold text-muted-foreground uppercase">Latitude <span className="text-destructive">*</span></Label>
-                        <Input
-                            id="lat"
-                            name="lat"
-                            type="number"
-                            step="0.000001"
-                            min="-90"
-                            max="90"
-                            value={lat}
-                            onChange={(e) => {
-                                setLat(e.target.value)
-                                handleCoordinateChange(e.target.value, lon)
-                            }}
-                            required
-                            className="h-7 text-xs font-mono"
-                        />
-                    </div>
-                    <div className="grid gap-1">
-                        <Label htmlFor="lon" className="text-[10px] font-semibold text-muted-foreground uppercase">Longitude <span className="text-destructive">*</span></Label>
-                        <Input
-                            id="lon"
-                            name="lon"
-                            type="number"
-                            step="0.000001"
-                            min="-180"
-                            max="180"
-                            value={lon}
-                            onChange={(e) => {
-                                setLon(e.target.value)
-                                handleCoordinateChange(lat, e.target.value)
-                            }}
-                            required
-                            className="h-7 text-xs font-mono"
-                        />
-                    </div>
-                </div>
+    try {
+      const stopData = {
+        ...formData,
+        stop_lat: parseFloat(formData.stop_lat),
+        stop_lon: parseFloat(formData.stop_lon),
+      }
 
-                <div className="grid gap-1">
-                    <Label htmlFor="desc" className="text-[10px] font-semibold text-muted-foreground uppercase">Description</Label>
-                    <Textarea
-                        id="desc"
-                        name="desc"
-                        defaultValue={stop.stop_desc}
-                        rows={3}
-                        placeholder="Optional description"
-                        className="text-xs min-h-[60px] resize-none"
-                    />
-                </div>
-            </form>
-        </Layout>
-    )
+      let result
+      if (stop.isNew) {
+        result = await projectService.createStop(currentProject.id, stopData)
+      } else {
+        result = await projectService.updateStop(currentProject.id, stop.stop_id, stopData)
+      }
+
+      if (result.success) {
+        toast.success(`Stop "${result.data.stop_name}" saved`)
+        if (onSave) onSave(result.data)
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to save stop")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <DetailLayout
+      icon={MapPin}
+      label={stop.isNew ? "New Stop" : "Stop Details"}
+      title={stop.isNew ? "Create Stop" : stop.stop_name}
+      onSave={handleSubmit}
+      loading={loading}
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid gap-1">
+            <Label htmlFor="stop_id" className="text-[10px] font-semibold text-muted-foreground uppercase">
+              ID <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="stop_id"
+              value={formData.stop_id}
+              onChange={(e) => handleChange("stop_id", e.target.value.toUpperCase())}
+              maxLength={8}
+              required
+              disabled={!stop.isNew}
+              className="h-7 text-xs font-mono"
+            />
+          </div>
+          <div className="grid gap-1">
+            <Label htmlFor="stop_code" className="text-[10px] font-semibold text-muted-foreground uppercase">
+              Code
+            </Label>
+            <Input
+              id="stop_code"
+              value={formData.stop_code}
+              onChange={(e) => handleChange("stop_code", e.target.value)}
+              maxLength={10}
+              className="h-7 text-xs font-mono"
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-1">
+          <Label htmlFor="stop_name" className="text-[10px] font-semibold text-muted-foreground uppercase">
+            Name <span className="text-destructive">*</span>
+          </Label>
+          <Input
+            id="stop_name"
+            value={formData.stop_name}
+            onChange={(e) => handleChange("stop_name", e.target.value)}
+            required
+            className="h-7 text-xs"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid gap-1">
+            <Label htmlFor="lat" className="text-[10px] font-semibold text-muted-foreground uppercase">
+              Latitude <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="lat"
+              type="number"
+              step="0.000001"
+              min="-90"
+              max="90"
+              value={formData.stop_lat}
+              onChange={(e) => handleChange("stop_lat", e.target.value)}
+              required
+              className="h-7 text-xs font-mono"
+            />
+          </div>
+          <div className="grid gap-1">
+            <Label htmlFor="lon" className="text-[10px] font-semibold text-muted-foreground uppercase">
+              Longitude <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="lon"
+              type="number"
+              step="0.000001"
+              min="-180"
+              max="180"
+              value={formData.stop_lon}
+              onChange={(e) => handleChange("stop_lon", e.target.value)}
+              required
+              className="h-7 text-xs font-mono"
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-1">
+          <Label htmlFor="desc" className="text-[10px] font-semibold text-muted-foreground uppercase">
+            Description
+          </Label>
+          <Textarea
+            id="desc"
+            value={formData.stop_desc}
+            onChange={(e) => handleChange("stop_desc", e.target.value)}
+            rows={3}
+            placeholder="Optional description"
+            className="text-xs min-h-[60px] resize-none"
+          />
+        </div>
+      </form>
+    </DetailLayout>
+  )
 }
