@@ -42,7 +42,7 @@ const ROUTE_TYPES = [
 
 export function RouteDetail({ route, initialStops, onSave, onClose }) {
     const { currentProject } = useUser()
-    const { updateRouteStops } = useEditorContext()
+    const { updateRouteStops, setHasUnsavedChanges: setContextUnsavedChanges } = useEditorContext()
     const [loading, setLoading] = useState(false)
     const [step, setStep] = useState(route?.route_id ? 2 : 1) // Step 1: Route details, Step 2: Stop assignment
     const [agencies, setAgencies] = useState([])
@@ -78,6 +78,27 @@ export function RouteDetail({ route, initialStops, onSave, onClose }) {
     const displayedStops = assignedStops
         .filter(s => (s.direction_id ?? 0) === selectedDirection)
         .sort((a, b) => a.stop_sequence - b.stop_sequence)
+
+    // Sync local unsaved changes state with context
+    useEffect(() => {
+        setContextUnsavedChanges(hasUnsavedChanges)
+    }, [hasUnsavedChanges, setContextUnsavedChanges])
+
+    // Listen for save requests from the layout
+    useEffect(() => {
+        const handleSaveRequest = () => {
+            if (step === 1) {
+                // Trigger form submit for route details
+                document.getElementById('route-form')?.requestSubmit()
+            } else if (step === 2) {
+                // Trigger stop save
+                handleSaveStops()
+            }
+        }
+
+        window.addEventListener('detail-save-requested', handleSaveRequest)
+        return () => window.removeEventListener('detail-save-requested', handleSaveRequest)
+    }, [step, handleSaveStops])
 
     // Fetch agencies on mount
     useEffect(() => {
@@ -149,7 +170,16 @@ export function RouteDetail({ route, initialStops, onSave, onClose }) {
                 limit: 5
             })
             if (response.success) {
-                const stopsData = response.stops || response.data || []
+                // Handle different API response structures
+                let stopsData = []
+                if (response.stops && Array.isArray(response.stops)) {
+                    stopsData = response.stops
+                } else if (Array.isArray(response.data)) {
+                    stopsData = response.data
+                } else if (response.data?.stops && Array.isArray(response.data.stops)) {
+                    stopsData = response.data.stops
+                }
+
                 // Filter out already assigned stops IN CURRENT DIRECTION
                 const currentDirectionStopIds = assignedStops
                     .filter(s => (s.direction_id ?? 0) === selectedDirection)

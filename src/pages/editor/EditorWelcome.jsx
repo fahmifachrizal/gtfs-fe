@@ -128,7 +128,7 @@ export default function EditorWelcome() {
       setProjectName("")
       setProjectDescription("")
       setShowStartModal(false)
-      navigate("/editor/stops")
+      navigate("/editor/agency")
 
     } catch (err) {
       console.error("Project creation error:", err)
@@ -140,7 +140,7 @@ export default function EditorWelcome() {
 
   const handleProjectSelect = async (project) => {
     setCurrentProject(project)
-    navigate("/editor/stops")
+    navigate("/editor/agency")
   }
 
   const handleDeleteClick = (e, project) => {
@@ -248,7 +248,7 @@ export default function EditorWelcome() {
             <div className="mt-3">
               <Button
                 size="sm"
-                onClick={() => navigate("/editor/stops")}
+                onClick={() => navigate("/editor/agency")}
                 className="bg-green-600 hover:bg-green-700 w-full sm:w-auto h-8 text-xs">
                 Continue Working
               </Button>

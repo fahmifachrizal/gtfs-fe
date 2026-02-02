@@ -24,10 +24,12 @@ export function EditorProvider({ children }) {
     features: [],
   })
   const [mapBounds, setMapBounds] = useState(null) // New state for bounds
+  const [onMarkerDragEnd, setOnMarkerDragEnd] = useState(null) // Callback for marker drag events
 
   // Sidebar / Detail View State
   const [activeDetail, setActiveDetail] = useState(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
   // Route Details State - centralized storage for route details with stops
   const [routeDetails, setRouteDetails] = useState({})
@@ -36,11 +38,13 @@ export function EditorProvider({ children }) {
   const setDetailView = useCallback((content) => {
     setActiveDetail(content)
     setIsDetailOpen(!!content)
+    setHasUnsavedChanges(false) // Reset unsaved changes when opening new detail
   }, [])
 
   const closeDetail = useCallback(() => {
     setIsDetailOpen(false)
     setActiveDetail(null)
+    setHasUnsavedChanges(false) // Reset unsaved changes when closing
   }, [])
 
   const [gtfsData, setGtfsData] = useState({
@@ -54,6 +58,8 @@ export function EditorProvider({ children }) {
     fare_rules: [],
     fare_attributes: [],
     shapes: [],
+    frequencies: [],
+    transfers: [],
   })
 
   const [gtfsMeta, setGtfsMeta] = useState({
@@ -67,7 +73,27 @@ export function EditorProvider({ children }) {
     fare_rules: { page: 1, pageSize: 10, totalPages: 1, totalItems: 0, search: "" },
     fare_attributes: { page: 1, pageSize: 10, totalPages: 1, totalItems: 0, search: "" },
     shapes: { page: 1, pageSize: 10, totalPages: 1, totalItems: 0, search: "" },
+    frequencies: { page: 1, pageSize: 10, totalPages: 1, totalItems: 0, search: "" },
+    transfers: { page: 1, pageSize: 10, totalPages: 1, totalItems: 0, search: "" },
   })
+
+  // Progress tracking state
+  const [completionStatus, setCompletionStatus] = useState({
+    welcome: true, // Always considered complete
+    agency: false,
+    stops: false,
+    routes: false,
+    shapes: false,
+    trips: false,
+    calendar: false,
+    "stop-times": false,
+    frequencies: false,
+    transfers: false,
+    fares: false,
+  })
+
+  // Track last fetched project to prevent infinite loops
+  const lastFetchedProjectRef = React.useRef(null)
 
   const handleFetchData = useCallback(async (type, options = {}) => {
     const { page = 1, overrideData = null, search = "" } = options
@@ -213,6 +239,8 @@ export function EditorProvider({ children }) {
       fare_rules: [],
       fare_attributes: [],
       shapes: [],
+      frequencies: [],
+      transfers: [],
     })
     setRouteDetails({})
   }, [])
@@ -237,9 +265,17 @@ export function EditorProvider({ children }) {
 
       if (response.success && response.data?.route) {
         const route = response.data.route
+
+        // Ensure available_directions is set from directions object
+        const routeWithDirections = {
+          ...route,
+          available_directions: route.available_directions ||
+            (route.directions ? Object.keys(route.directions).map(Number) : [])
+        }
+
         setRouteDetails(prev => ({
           ...prev,
-          [routeId]: route,
+          [routeId]: routeWithDirections,
         }))
 
         // Calculate bounds from stops for map centering
@@ -311,7 +347,13 @@ export function EditorProvider({ children }) {
 
     mapData.features.forEach((feature) => {
       if (feature.geometry?.type === "LineString") {
-        const { route_id, direction_id, route_color } = feature.properties || {}
+        const { route_id, direction_id, route_color, type } = feature.properties || {}
+
+        // Skip static shape paths and other non-animated lines
+        if (type === "shape-path" || !route_id) {
+          return
+        }
+
         const key = `${route_id}-${direction_id}`
 
         if (!routeMap.has(key)) {
@@ -358,6 +400,136 @@ export function EditorProvider({ children }) {
     }))
   }, [])
 
+  // Fetch counts for all GTFS types to properly check requirements
+  const fetchAllCounts = useCallback(async () => {
+    const projectId = currentProject?.id || JSON.parse(localStorage.getItem('current_project') || '{}')?.id
+    const token = user?.token || localStorage.getItem('auth_token')
+
+    if (!token || !projectId) {
+      console.warn("[EditorContext] fetchAllCounts: No token or projectId")
+      return
+    }
+
+    const typesToCheck = ['agency', 'stops', 'routes', 'trips', 'calendar', 'stop-times']
+
+    try {
+      // Fetch all counts in parallel
+      const results = await Promise.allSettled(
+        typesToCheck.map(async (type) => {
+          const query = new URLSearchParams({
+            page: '1',
+            project_id: projectId,
+          }).toString()
+
+          const fullUrl = getApiUrl(`/api/gtfs/${type}?${query}`)
+          const response = await fetch(fullUrl, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          })
+
+          if (!response.ok) {
+            console.warn(`[EditorContext] fetchAllCounts: ${type} returned ${response.status}`)
+            return { type, count: 0 }
+          }
+
+          const data = await response.json()
+          console.log(`[EditorContext] fetchAllCounts: ${type} response:`, data)
+
+          // Extract count from response
+          let count = 0
+
+          // Check various response formats
+          if (data.meta?.totalItems) {
+            // Format: { meta: { totalItems: X } }
+            count = data.meta.totalItems
+          } else if (data.data?.pagination?.total) {
+            // Format: { data: { pagination: { total: X } } } - used by stops, routes, etc.
+            count = data.data.pagination.total
+          } else if (data.pagination?.total) {
+            // Format: { pagination: { total: X } }
+            count = data.pagination.total
+          } else if (data.data?.[type]) {
+            // Format: { data: { stops: [...] } }
+            count = data.data[type].length
+          } else if (data[type]) {
+            // Format: { stops: [...] }
+            count = data[type].length
+          } else if (Array.isArray(data.data)) {
+            // Format: { data: [...] }
+            count = data.data.length
+          }
+
+          console.log(`[EditorContext] fetchAllCounts: ${type} extracted count: ${count}`)
+
+          // Map stop-times back to stop_times for consistency
+          const mappedType = type === 'stop-times' ? 'stop_times' : type
+          return { type: mappedType, count }
+        })
+      )
+
+      // Update gtfsMeta with counts
+      results.forEach((result) => {
+        if (result.status === 'fulfilled' && result.value) {
+          const { type, count } = result.value
+          setGtfsMeta((prev) => ({
+            ...prev,
+            [type]: {
+              ...prev[type],
+              totalItems: count,
+            },
+          }))
+        }
+      })
+    } catch (error) {
+      console.error("[EditorContext] Failed to fetch counts:", error)
+    }
+  }, [currentProject, user])
+
+  // Check requirements for each GTFS step based on counts in meta
+  const checkRequirements = useCallback(() => {
+    const newStatus = {
+      welcome: true,
+      agency: (gtfsData.agency && gtfsData.agency.length > 0) || (gtfsMeta.agency?.totalItems > 0),
+      stops: (gtfsData.stops && gtfsData.stops.length >= 2) || (gtfsMeta.stops?.totalItems >= 2), // At least 2 stops needed
+      routes: (gtfsData.routes && gtfsData.routes.length > 0) || (gtfsMeta.routes?.totalItems > 0),
+      shapes: true, // Optional
+      trips: (gtfsData.trips && gtfsData.trips.length > 0) || (gtfsMeta.trips?.totalItems > 0),
+      calendar: (gtfsData.calendar && gtfsData.calendar.length > 0) || (gtfsMeta.calendar?.totalItems > 0),
+      "stop-times": (gtfsData.stop_times && gtfsData.stop_times.length > 0) || (gtfsMeta.stop_times?.totalItems > 0),
+      frequencies: true, // Optional
+      transfers: true, // Optional
+      fares: true, // Optional
+    }
+
+    console.log("[EditorContext] Checking requirements:", {
+      agencyData: gtfsData.agency?.length,
+      agencyMeta: gtfsMeta.agency?.totalItems,
+      agencyStatus: newStatus.agency,
+      stopsData: gtfsData.stops?.length,
+      stopsMeta: gtfsMeta.stops?.totalItems,
+      stopsStatus: newStatus.stops,
+      newStatus
+    })
+
+    setCompletionStatus(newStatus)
+    return newStatus
+  }, [gtfsData, gtfsMeta])
+
+  // Update completion status when data changes
+  React.useEffect(() => {
+    checkRequirements()
+  }, [gtfsData, gtfsMeta, checkRequirements])
+
+  // Fetch all counts when project changes
+  React.useEffect(() => {
+    if (currentProject?.id && currentProject.id !== lastFetchedProjectRef.current) {
+      lastFetchedProjectRef.current = currentProject.id
+      fetchAllCounts().then(() => checkRequirements())
+    }
+  }, [currentProject?.id])
+
   const contextValue = {
     center,
     setCenter,
@@ -391,6 +563,17 @@ export function EditorProvider({ children }) {
     isDetailOpen,
     setDetailView,
     closeDetail,
+    hasUnsavedChanges,
+    setHasUnsavedChanges,
+
+    // Progress Tracking
+    completionStatus,
+    checkRequirements,
+    fetchAllCounts,
+
+    // Map Interaction
+    onMarkerDragEnd,
+    setOnMarkerDragEnd: (callback) => setOnMarkerDragEnd(() => callback),
   }
 
   return (

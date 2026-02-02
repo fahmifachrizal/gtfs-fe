@@ -23,7 +23,9 @@ export default function StopsPage() {
     updateMeta,
     updateMapData,
     clearMap,
-    activeDetail // Get activeDetail to track sidebar state
+    activeDetail, // Get activeDetail to track sidebar state
+    checkRequirements, // For immediate completion status update
+    fetchAllCounts, // Fetch counts for all data types
   } = useEditorContext()
 
   const { currentProject, isAuthenticated } = useUser()
@@ -94,6 +96,9 @@ export default function StopsPage() {
       if (result.error) {
         throw new Error(result.error)
       }
+
+      // Force immediate completion status update
+      setTimeout(() => checkRequirements(), 0)
 
     } catch (error) {
       console.error("[StopsPage] Failed to fetch stops:", error)
@@ -181,9 +186,11 @@ export default function StopsPage() {
     }
   }, [currentProject, isAuthenticated, hasAttemptedLoad])
 
-  const handleSaveStop = (savedStop) => {
+  const handleSaveStop = async (savedStop) => {
     // Refresh the list and search for the new stop to show it
-    fetchStops(1, savedStop.stop_name, true)
+    await fetchStops(1, savedStop.stop_name, true)
+    // Update all requirements to unlock next pages
+    await fetchAllCounts()
     toast.success(`Stop "${savedStop.stop_name}" saved successfully`)
   }
 

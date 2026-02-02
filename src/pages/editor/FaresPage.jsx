@@ -66,6 +66,8 @@ export default function FaresPage() {
         getMeta,
         updateMeta,
         clearMap,
+        checkRequirements, // For immediate completion status update
+        fetchAllCounts, // Fetch counts for all data types
     } = useEditorContext()
 
     const { currentProject, isAuthenticated } = useUser()
@@ -118,6 +120,9 @@ export default function FaresPage() {
                 throw new Error(result.error)
             }
 
+            // Force immediate completion status update
+            setTimeout(() => checkRequirements(), 0)
+
         } catch (error) {
             console.error("[FaresPage] Failed to fetch fares:", error)
             setError(error.message || "Failed to load fares")
@@ -148,8 +153,10 @@ export default function FaresPage() {
         }
     }, [currentProject, isAuthenticated, hasAttemptedLoad])
 
-    const handleSaveFare = (savedFare) => {
-        fetchFares(1, savedFare.fare_id || "", true)
+    const handleSaveFare = async (savedFare) => {
+        await fetchFares(1, savedFare.fare_id || "", true)
+        // Update all requirements to unlock next pages
+        await fetchAllCounts()
         toast.success(`Fare "${savedFare.fare_id}" saved successfully`)
     }
 

@@ -77,7 +77,7 @@ export default function HomeLayout() {
     return (
         <div className="min-h-screen bg-background font-sans antialiased">
             <NavigationHeader />
-            <main className="relative flex min-h-screen flex-col">
+            <main className="relative flex min-h-screen flex-col pt-14">
                 <Outlet />
             </main>
         </div>

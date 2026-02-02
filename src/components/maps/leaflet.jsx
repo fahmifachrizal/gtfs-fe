@@ -50,7 +50,8 @@ export default function Map({
   onInstanceCreate = null,
   onInstanceComplete = null,
   onProgress = null,
-  rightPadding = 0, // New prop
+  rightPadding = 0,
+  onMarkerDragEnd = null, // New prop for handling marker drag
 }) {
   const { theme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
@@ -93,6 +94,7 @@ export default function Map({
           onInstanceComplete={onInstanceComplete}
           onProgress={onProgress}
           rightPadding={rightPadding}
+          onMarkerDragEnd={onMarkerDragEnd}
         />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -117,8 +119,9 @@ function MapChild({
   onInstanceCreate,
   onInstanceComplete,
   onProgress,
-  bounds, // Add bounds prop
+  bounds,
   rightPadding,
+  onMarkerDragEnd,
 }) {
   const map = useMap()
 
@@ -129,9 +132,10 @@ function MapChild({
       // bounds format: [[lat1, lon1], [lat2, lon2]]
       try {
         map.fitBounds(bounds, {
-          padding: [50, 50],
+          padding: [80, 80], // Increased padding for better visualization of routes
           maxZoom: 16,
-          animate: true
+          animate: true,
+          duration: 0.5
         })
       } catch (e) {
         console.warn("Invalid bounds:", bounds)
@@ -190,12 +194,59 @@ function MapChild({
           route_short_name,
           stop_sequence,
           isSelected,
+          isWaypoint,
+          isDraggable,
+          waypointIndex,
+          isPreview,
         } = feature.properties || {}
 
         const isRouteStop = type === "route" || type === "stop"
 
+        // Determine if marker should be draggable
+        const draggable = isDraggable || isWaypoint || type === 'waypoint' || type === 'preview-waypoint'
+
         let icon
-        if (isRouteStop) {
+        if (isPreview) {
+          // Preview waypoint marker (semi-transparent)
+          const size = 14
+          icon = L.divIcon({
+            className: "preview-waypoint-marker",
+            html: `
+              <div style="
+                width: ${size}px;
+                height: ${size}px;
+                background-color: rgba(34, 197, 94, 0.5);
+                border: 2px solid rgba(34, 197, 94, 0.8);
+                border-radius: 50%;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                z-index: 1500;
+              "></div>
+            `,
+            iconSize: [size + 4, size + 4],
+            iconAnchor: [size / 2 + 2, size / 2 + 2],
+          })
+        } else if (isWaypoint || type === 'waypoint') {
+          // Custom waypoint marker (draggable)
+          const size = 14
+          const color = "#22c55e"
+          icon = L.divIcon({
+            className: "waypoint-marker",
+            html: `
+              <div style="
+                width: ${size}px;
+                height: ${size}px;
+                background-color: ${color};
+                border: 3px solid white;
+                border-radius: 50%;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                cursor: ${draggable ? 'grab' : 'pointer'};
+                z-index: 1500;
+              "></div>
+            `,
+            iconSize: [size + 6, size + 6],
+            iconAnchor: [size / 2 + 3, size / 2 + 3],
+          })
+        } else if (isRouteStop) {
           const color = formatRouteColor(route_color)
           const size = isSelected ? 22 : 16
           const borderWidth = isSelected ? 4 : 3
@@ -315,8 +366,27 @@ function MapChild({
         )
 
         markers.push(
-          <Marker key={`${stop_id}-${index}`} position={[lat, lon]} icon={icon}>
-            <Popup className="transparent-popup">{popupContent}</Popup>
+          <Marker
+            key={`${stop_id || `marker-${index}`}-${index}`}
+            position={[lat, lon]}
+            icon={icon}
+            draggable={draggable}
+            eventHandlers={{
+              dragend: (e) => {
+                if (onMarkerDragEnd) {
+                  const marker = e.target
+                  const position = marker.getLatLng()
+                  onMarkerDragEnd({
+                    lat: position.lat,
+                    lon: position.lng,
+                    waypointIndex,
+                    feature,
+                  })
+                }
+              },
+            }}
+          >
+            {!isPreview && <Popup className="transparent-popup">{popupContent}</Popup>}
           </Marker>
         )
       } else if (feature.geometry?.type === "LineString") {

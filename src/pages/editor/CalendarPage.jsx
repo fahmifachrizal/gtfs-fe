@@ -21,6 +21,8 @@ export default function CalendarPage() {
         getMeta,
         updateMeta,
         clearMap,
+        checkRequirements, // For immediate completion status update
+        fetchAllCounts, // Fetch counts for all data types
     } = useEditorContext()
 
     const { currentProject, isAuthenticated } = useUser()
@@ -73,6 +75,9 @@ export default function CalendarPage() {
                 throw new Error(result.error)
             }
 
+            // Force immediate completion status update
+            setTimeout(() => checkRequirements(), 0)
+
         } catch (error) {
             console.error("[CalendarPage] Failed to fetch calendar:", error)
             setError(error.message || "Failed to load calendar")
@@ -103,8 +108,10 @@ export default function CalendarPage() {
         }
     }, [currentProject, isAuthenticated, hasAttemptedLoad])
 
-    const handleSaveCalendar = (savedCalendar) => {
-        fetchCalendar(1, savedCalendar.service_id || "", true)
+    const handleSaveCalendar = async (savedCalendar) => {
+        await fetchCalendar(1, savedCalendar.service_id || "", true)
+        // Update all requirements to unlock next pages
+        await fetchAllCounts()
         toast.success(`Calendar "${savedCalendar.service_id}" saved successfully`)
     }
 

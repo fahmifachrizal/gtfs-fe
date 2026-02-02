@@ -85,11 +85,233 @@ export const projectService = {
         });
     },
 
+    // Get route path (shape) and stops for a specific direction
+    getRoutePathAndStops: async (projectId, routeId, directionId = 0) => {
+        return request({
+            url: `/api/gtfs/routes/${routeId}/path-and-stops?project_id=${projectId}&direction_id=${directionId}`,
+            method: 'GET'
+        });
+    },
+
     // Agencies
     getAgencies: async (projectId) => {
         return request({
             url: `/api/projects/${projectId}/agencies`,
             method: 'GET'
+        });
+    },
+
+    getAgency: async (projectId, agencyId) => {
+        return request({
+            url: `/api/projects/${projectId}/agencies/${agencyId}`,
+            method: 'GET'
+        });
+    },
+
+    createAgency: async (projectId, data) => {
+        return request({
+            url: `/api/projects/${projectId}/agencies`,
+            method: 'POST',
+            bodyObject: data
+        });
+    },
+
+    updateAgency: async (projectId, agencyId, data) => {
+        return request({
+            url: `/api/projects/${projectId}/agencies/${agencyId}`,
+            method: 'PUT',
+            bodyObject: data
+        });
+    },
+
+    deleteAgency: async (projectId, agencyId) => {
+        return request({
+            url: `/api/projects/${projectId}/agencies/${agencyId}`,
+            method: 'DELETE'
+        });
+    },
+
+    // Shapes
+    getShapes: async (projectId, params = {}) => {
+        const query = new URLSearchParams(params).toString();
+        return request({
+            url: `/api/projects/${projectId}/shapes?${query}`,
+            method: 'GET'
+        });
+    },
+
+    getShape: async (projectId, shapeId) => {
+        return request({
+            url: `/api/projects/${projectId}/shapes/${shapeId}`,
+            method: 'GET'
+        });
+    },
+
+    createOrUpdateShape: async (projectId, data) => {
+        return request({
+            url: `/api/projects/${projectId}/shapes`,
+            method: 'POST',
+            bodyObject: data
+        });
+    },
+
+    saveShape: async (projectId, data) => {
+        return projectService.createOrUpdateShape(projectId, data);
+    },
+
+    deleteShape: async (projectId, shapeId) => {
+        return request({
+            url: `/api/projects/${projectId}/shapes/${shapeId}`,
+            method: 'DELETE'
+        });
+    },
+
+    generateShapeFromRoute: async (projectId, routeId, directionId) => {
+        return request({
+            url: `/api/projects/${projectId}/routes/${routeId}/generate-shape`,
+            method: 'POST',
+            bodyObject: { direction_id: directionId }
+        });
+    },
+
+    // Stop Times
+    getAllStopTimes: async (projectId, params = {}) => {
+        const query = new URLSearchParams(params).toString();
+        return request({
+            url: `/api/projects/${projectId}/stop-times?${query}`,
+            method: 'GET'
+        });
+    },
+
+    getStopTimes: async (projectId, tripId) => {
+        return request({
+            url: `/api/projects/${projectId}/trips/${tripId}/stop-times`,
+            method: 'GET'
+        });
+    },
+
+    createStopTimes: async (projectId, tripId, stopTimes) => {
+        return request({
+            url: `/api/projects/${projectId}/trips/${tripId}/stop-times`,
+            method: 'POST',
+            bodyObject: { stop_times: stopTimes }
+        });
+    },
+
+    autoGenerateStopTimes: async (projectId, tripId, options) => {
+        return request({
+            url: `/api/projects/${projectId}/trips/${tripId}/stop-times/auto-generate`,
+            method: 'POST',
+            bodyObject: options
+        });
+    },
+
+    updateStopTime: async (projectId, tripId, stopSequence, data) => {
+        return request({
+            url: `/api/projects/${projectId}/trips/${tripId}/stop-times/${stopSequence}`,
+            method: 'PUT',
+            bodyObject: data
+        });
+    },
+
+    deleteStopTimes: async (projectId, tripId) => {
+        return request({
+            url: `/api/projects/${projectId}/trips/${tripId}/stop-times`,
+            method: 'DELETE'
+        });
+    },
+
+    // Frequencies
+    getFrequencies: async (projectId, params = {}) => {
+        const query = new URLSearchParams(params).toString();
+        return request({
+            url: `/api/projects/${projectId}/frequencies?${query}`,
+            method: 'GET'
+        });
+    },
+
+    getFrequenciesByTrip: async (projectId, tripId) => {
+        return request({
+            url: `/api/projects/${projectId}/trips/${tripId}/frequencies`,
+            method: 'GET'
+        });
+    },
+
+    createFrequency: async (projectId, data) => {
+        return request({
+            url: `/api/projects/${projectId}/frequencies`,
+            method: 'POST',
+            bodyObject: data
+        });
+    },
+
+    updateFrequency: async (projectId, frequencyId, data) => {
+        return request({
+            url: `/api/projects/${projectId}/frequencies/${frequencyId}`,
+            method: 'PUT',
+            bodyObject: data
+        });
+    },
+
+    deleteFrequency: async (projectId, frequencyId) => {
+        return request({
+            url: `/api/projects/${projectId}/frequencies/${frequencyId}`,
+            method: 'DELETE'
+        });
+    },
+
+    generateDefaultFrequencies: async (projectId, tripId) => {
+        return request({
+            url: `/api/projects/${projectId}/trips/${tripId}/frequencies/generate`,
+            method: 'POST',
+            bodyObject: {}
+        });
+    },
+
+    // Transfers
+    getTransfers: async (projectId, params = {}) => {
+        const query = new URLSearchParams(params).toString();
+        return request({
+            url: `/api/projects/${projectId}/transfers?${query}`,
+            method: 'GET'
+        });
+    },
+
+    getTransfersByStop: async (projectId, stopId) => {
+        return request({
+            url: `/api/projects/${projectId}/stops/${stopId}/transfers`,
+            method: 'GET'
+        });
+    },
+
+    createTransfer: async (projectId, data) => {
+        return request({
+            url: `/api/projects/${projectId}/transfers`,
+            method: 'POST',
+            bodyObject: data
+        });
+    },
+
+    updateTransfer: async (projectId, transferId, data) => {
+        return request({
+            url: `/api/projects/${projectId}/transfers/${transferId}`,
+            method: 'PUT',
+            bodyObject: data
+        });
+    },
+
+    deleteTransfer: async (projectId, transferId) => {
+        return request({
+            url: `/api/projects/${projectId}/transfers/${transferId}`,
+            method: 'DELETE'
+        });
+    },
+
+    generateTransfersForNearbyStops: async (projectId, options) => {
+        return request({
+            url: `/api/projects/${projectId}/transfers/generate`,
+            method: 'POST',
+            bodyObject: options
         });
     },
 

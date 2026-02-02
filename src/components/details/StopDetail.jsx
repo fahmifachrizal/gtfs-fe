@@ -1,5 +1,6 @@
 import { projectService } from "@/services/projectService"
 import { useUser } from "@/contexts/UserContext"
+import { useEditorContext } from "@/contexts/EditorContext"
 import { toast } from "sonner"
 import { useState, useEffect } from "react"
 import { MapPin } from "lucide-react"
@@ -10,7 +11,9 @@ import { DetailLayout } from "./DetailLayout"
 
 export function StopDetail({ stop, onSave, onPreview }) {
   const { currentProject } = useUser()
+  const { setHasUnsavedChanges: setContextUnsavedChanges } = useEditorContext()
   const [loading, setLoading] = useState(false)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
   // Controlled state for inputs
   const [formData, setFormData] = useState({
@@ -21,6 +24,21 @@ export function StopDetail({ stop, onSave, onPreview }) {
     stop_lon: stop.stop_lon || "",
     stop_desc: stop.stop_desc || "",
   })
+
+  // Sync local unsaved changes state with context
+  useEffect(() => {
+    setContextUnsavedChanges(hasUnsavedChanges)
+  }, [hasUnsavedChanges, setContextUnsavedChanges])
+
+  // Listen for save requests from the layout
+  useEffect(() => {
+    const handleSaveRequest = () => {
+      document.getElementById('stop-form')?.requestSubmit()
+    }
+
+    window.addEventListener('detail-save-requested', handleSaveRequest)
+    return () => window.removeEventListener('detail-save-requested', handleSaveRequest)
+  }, [])
 
   // Generate ID for new stops
   useEffect(() => {
@@ -69,6 +87,7 @@ export function StopDetail({ stop, onSave, onPreview }) {
     } else {
       setFormData(prev => ({ ...prev, [field]: value }))
     }
+    setHasUnsavedChanges(true)
   }
 
   const handleSubmit = async (e) => {
@@ -91,6 +110,7 @@ export function StopDetail({ stop, onSave, onPreview }) {
 
       if (result.success) {
         toast.success(`Stop "${result.data.stop_name}" saved`)
+        setHasUnsavedChanges(false)
         if (onSave) onSave(result.data)
       }
     } catch (error) {
@@ -108,7 +128,7 @@ export function StopDetail({ stop, onSave, onPreview }) {
       onSave={handleSubmit}
       loading={loading}
     >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
+      <form id="stop-form" onSubmit={handleSubmit} className="flex flex-col gap-2.5">
         <div className="grid grid-cols-2 gap-2.5">
           <div className="grid gap-1">
             <Label htmlFor="stop_id" className="text-[10px] font-semibold text-muted-foreground uppercase">

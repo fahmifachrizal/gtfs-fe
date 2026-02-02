@@ -24,15 +24,16 @@ export default function Editor() {
             const response = await projectService.getAll({ page, limit: 9, search });
             // console.log("Fetch Projects Response:", response); // DEBUG
 
-            // Handle both legacy array response and new paginated response structure
-            if (response.data && response.data.projects) {
-                setProjects(response.data.projects);
-                setTotalPages(response.data.pagination.totalPages);
-                setTotalCount(response.data.pagination.totalCount);
+            // Handle paginated response structure from backend
+            if (response.projects && response.pagination) {
+                setProjects(response.projects);
+                setTotalPages(response.pagination.pages);
+                setTotalCount(response.pagination.total);
             } else if (Array.isArray(response)) {
+                // Legacy array response
                 setProjects(response);
             } else {
-                 setProjects([]);
+                setProjects([]);
             }
         } catch (error) {
             console.error("Failed to fetch projects:", error);

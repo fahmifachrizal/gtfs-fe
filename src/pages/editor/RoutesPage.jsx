@@ -319,11 +319,48 @@ export default function RoutesPage() {
   useEffect(() => {
     const mapData = generateMapData()
     updateMapData(mapData)
+
+    // Calculate and set bounds for all expanded routes
+    if (expandedRoutes.size > 0) {
+      let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity
+      let hasCoordinates = false
+
+      gtfsData.routes?.forEach(route => {
+        if (!expandedRoutes.has(route.route_id)) return
+
+        const details = routeDetails[route.route_id]
+        if (!details || !details.directions) return
+
+        Object.values(details.directions || {}).forEach(directionStops => {
+          directionStops.forEach(stop => {
+            if (stop.stop_lat && stop.stop_lon) {
+              minLat = Math.min(minLat, stop.stop_lat)
+              maxLat = Math.max(maxLat, stop.stop_lat)
+              minLon = Math.min(minLon, stop.stop_lon)
+              maxLon = Math.max(maxLon, stop.stop_lon)
+              hasCoordinates = true
+            }
+          })
+        })
+      })
+
+      if (hasCoordinates) {
+        setMapBounds([[minLat, minLon], [maxLat, maxLon]])
+      } else {
+        setMapBounds(null)
+      }
+    } else {
+      // Clear bounds when no routes are expanded
+      setMapBounds(null)
+    }
   }, [routeDetails, gtfsData.routes, expandedRoutes])
 
+  // Cleanup when unmounting (navigating away from routes page)
   useEffect(() => {
     return () => {
-      // cleanup
+      // Clear map data and bounds when leaving the page
+      updateMapData({ type: "FeatureCollection", features: [] })
+      setMapBounds(null)
     }
   }, [])
 
@@ -435,3 +472,4 @@ export default function RoutesPage() {
     </div>
   )
 }
+

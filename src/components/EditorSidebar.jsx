@@ -25,7 +25,6 @@ import {
     SidebarMenuItem,
     SidebarSeparator,
 } from "@/components/ui/sidebar"
-import { NavUser } from "@/components/nav-user"
 import { useUser } from "@/contexts/UserContext"
 
 const editorPages = [

@@ -300,5 +300,108 @@ const calendar = [
   },
 ]
 
-const columns = { agency, stops, routes, trips, stopTimes, calendar }
+const shapes = [
+  {
+    accessorKey: "shape_id",
+    header: "Shape ID",
+    cell: ({ row }) => <div className="w-24 font-semibold">{row.getValue("shape_id")}</div>,
+    visible: true,
+    required: true,
+  },
+  {
+    accessorKey: "points_count",
+    header: "Points",
+    cell: ({ row }) => <div className="w-16 text-center">{row.getValue("points_count") || "-"}</div>,
+    visible: true,
+    required: false,
+  },
+  {
+    accessorKey: "total_distance",
+    header: "Distance",
+    cell: ({ row }) => {
+      const distance = row.getValue("total_distance")
+      return <div className="w-20">{distance ? `${parseFloat(distance).toFixed(2)} km` : "-"}</div>
+    },
+    visible: true,
+    required: false,
+  },
+]
+
+const frequencies = [
+  {
+    accessorKey: "trip_id",
+    header: "Trip ID",
+    cell: ({ row }) => <div className="w-24 font-mono text-xs">{row.getValue("trip_id")}</div>,
+    visible: true,
+    required: true,
+  },
+  {
+    accessorKey: "start_time",
+    header: "Start Time",
+    cell: ({ row }) => <div className="w-20 font-mono">{row.getValue("start_time")}</div>,
+    visible: true,
+    required: true,
+  },
+  {
+    accessorKey: "end_time",
+    header: "End Time",
+    cell: ({ row }) => <div className="w-20 font-mono">{row.getValue("end_time")}</div>,
+    visible: true,
+    required: true,
+  },
+  {
+    accessorKey: "headway_secs",
+    header: "Headway",
+    cell: ({ row }) => <div className="w-20">{Math.floor(row.getValue("headway_secs") / 60)} min</div>,
+    visible: true,
+    required: true,
+  },
+  {
+    accessorKey: "exact_times",
+    header: "Exact",
+    cell: ({ row }) => <div className="w-12 text-center">{row.getValue("exact_times") ? "Yes" : "No"}</div>,
+    visible: true,
+    required: false,
+  },
+]
+
+const transfers = [
+  {
+    accessorKey: "from_stop_id",
+    header: "From Stop",
+    cell: ({ row }) => <div className="w-24 font-semibold">{row.getValue("from_stop_id")}</div>,
+    visible: true,
+    required: true,
+  },
+  {
+    accessorKey: "to_stop_id",
+    header: "To Stop",
+    cell: ({ row }) => <div className="w-24 font-semibold">{row.getValue("to_stop_id")}</div>,
+    visible: true,
+    required: true,
+  },
+  {
+    accessorKey: "transfer_type",
+    header: "Type",
+    cell: ({ row }) => {
+      const typeLabels = { 0: "Recommended", 1: "Timed", 2: "Min Time", 3: "Not Possible" }
+      const type = row.getValue("transfer_type")
+      return <div className="w-24">{typeLabels[type] || type}</div>
+    },
+    visible: true,
+    required: true,
+  },
+  {
+    accessorKey: "min_transfer_time",
+    header: "Min Time",
+    cell: ({ row }) => {
+      const seconds = row.getValue("min_transfer_time")
+      return <div className="w-20">{seconds ? `${Math.floor(seconds / 60)} min` : "-"}</div>
+    },
+    visible: true,
+    required: false,
+  },
+]
+
+const columns = { agency, stops, routes, trips, stopTimes, calendar, shapes, frequencies, transfers }
 export { columns }

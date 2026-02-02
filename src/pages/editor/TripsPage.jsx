@@ -23,7 +23,9 @@ export default function TripsPage() {
         updateMeta,
         updateMapData,
         clearMap,
-        activeDetail
+        activeDetail,
+        checkRequirements, // For immediate completion status update
+        fetchAllCounts, // Fetch counts for all data types
     } = useEditorContext()
 
     const { currentProject, isAuthenticated } = useUser()
@@ -77,6 +79,9 @@ export default function TripsPage() {
                 throw new Error(result.error)
             }
 
+            // Force immediate completion status update
+            setTimeout(() => checkRequirements(), 0)
+
         } catch (error) {
             console.error("[TripsPage] Failed to fetch trips:", error)
             setError(error.message || "Failed to load trips")
@@ -109,8 +114,10 @@ export default function TripsPage() {
         }
     }, [currentProject, isAuthenticated, hasAttemptedLoad])
 
-    const handleSaveTrip = (savedTrip) => {
-        fetchTrips(1, savedTrip.trip_headsign || "", true)
+    const handleSaveTrip = async (savedTrip) => {
+        await fetchTrips(1, savedTrip.trip_headsign || "", true)
+        // Update all requirements to unlock next pages
+        await fetchAllCounts()
         toast.success(`Trip "${savedTrip.trip_id}" saved successfully`)
     }
 

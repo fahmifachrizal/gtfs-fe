@@ -60,7 +60,7 @@ function EditorLayoutContent({ children }) {
 
 function EditorLayoutInner({ children, onExport, loading: initialLoading }) {
     const { user, currentProject } = useUser()
-    const { center, mapData, mapBounds, generateAnimationRoutes, resetEditorState } = useEditorContext()
+    const { center, mapData, mapBounds, generateAnimationRoutes, resetEditorState, onMarkerDragEnd } = useEditorContext()
     const [loading, setLoading] = useState(false) // Local loading for reset
     const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
 
@@ -121,23 +121,25 @@ function EditorLayoutInner({ children, onExport, loading: initialLoading }) {
         // console.log(`[Editor] Progress ${instanceId}: ${Math.round(progress * 100)}%`)
     }
 
-    const { activeDetail, isDetailOpen, closeDetail } = useEditorContext()
+    const { activeDetail, isDetailOpen, closeDetail, hasUnsavedChanges, setHasUnsavedChanges } = useEditorContext()
     const detailRef = React.useRef(null)
+    const [isUnsavedChangesDialogOpen, setIsUnsavedChangesDialogOpen] = useState(false)
 
-    React.useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (detailRef.current && !detailRef.current.contains(event.target)) {
-                closeDetail()
-            }
+    // Handle close button click
+    const handleCloseClick = () => {
+        if (hasUnsavedChanges) {
+            setIsUnsavedChangesDialogOpen(true)
+        } else {
+            closeDetail()
         }
+    }
 
-        if (isDetailOpen) {
-            document.addEventListener("mousedown", handleClickOutside)
-        }
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside)
-        }
-    }, [isDetailOpen, closeDetail])
+    // Discard changes and close
+    const handleDiscardChanges = () => {
+        setIsUnsavedChangesDialogOpen(false)
+        setHasUnsavedChanges(false)
+        closeDetail()
+    }
 
     return (
         <div className="h-screen flex flex-col text-foreground bg-background">
@@ -194,6 +196,7 @@ function EditorLayoutInner({ children, onExport, loading: initialLoading }) {
                                 onInstanceCreate={handleInstanceCreate}
                                 onInstanceComplete={handleInstanceComplete}
                                 onProgress={handleProgress}
+                                onMarkerDragEnd={onMarkerDragEnd}
                                 rightPadding={isDetailOpen ? 400 : 0}
                             />
                         </div>
@@ -206,7 +209,7 @@ function EditorLayoutInner({ children, onExport, loading: initialLoading }) {
                             >
                                 <div className="flex items-center justify-between p-4 border-b">
                                     <h3 className="font-semibold text-sm">Details</h3>
-                                    <Button variant="ghost" size="icon" onClick={closeDetail} className="h-8 w-8">
+                                    <Button variant="ghost" size="icon" onClick={handleCloseClick} className="h-8 w-8">
                                         <span className="sr-only">Close</span>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
                                     </Button>
@@ -235,6 +238,33 @@ function EditorLayoutInner({ children, onExport, loading: initialLoading }) {
                         </Button>
                         <Button variant="destructive" onClick={confirmReset} disabled={loading}>
                             {loading ? "Resetting..." : "Reset Data"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isUnsavedChangesDialogOpen} onOpenChange={setIsUnsavedChangesDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Unsaved Changes</DialogTitle>
+                        <DialogDescription>
+                            You have unsaved changes. Do you want to save them before closing?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={handleDiscardChanges}>
+                            Discard Changes
+                        </Button>
+                        <Button variant="outline" onClick={() => setIsUnsavedChangesDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={() => {
+                            // Trigger save action - the detail component should handle this via a ref or callback
+                            const saveEvent = new CustomEvent('detail-save-requested')
+                            window.dispatchEvent(saveEvent)
+                            setIsUnsavedChangesDialogOpen(false)
+                        }}>
+                            Save Changes
                         </Button>
                     </DialogFooter>
                 </DialogContent>
