@@ -1,4 +1,4 @@
-import { projectService } from "@/services/projectService"
+import { service } from "@/services"
 import { useUser } from "@/contexts/UserContext"
 import { toast } from "sonner"
 import { useState, useEffect } from "react"
@@ -15,7 +15,7 @@ const TRANSFER_TYPES = [
     { value: 3, label: "Not Possible", description: "Transfer not possible" },
 ]
 
-export function TransferDetail({ transfer, stops, onSave, onDelete }) {
+export function TransferDetail({ transfer, stops, onSave, onDelete, onClose }) {
     const { currentProject } = useUser()
     const [loading, setLoading] = useState(false)
     const [deleting, setDeleting] = useState(false)
@@ -65,9 +65,9 @@ export function TransferDetail({ transfer, stops, onSave, onDelete }) {
 
             let result
             if (transfer.isNew) {
-                result = await projectService.createTransfer(currentProject.id, transferData)
+                result = await service.transfers.createTransfer(currentProject.id, transferData)
             } else {
-                result = await projectService.updateTransfer(currentProject.id, transfer.transfer_id, transferData)
+                result = await service.transfers.updateTransfer(currentProject.id, transfer.transfer_id, transferData)
             }
 
             if (result.success) {
@@ -88,7 +88,7 @@ export function TransferDetail({ transfer, stops, onSave, onDelete }) {
 
         setDeleting(true)
         try {
-            const result = await projectService.deleteTransfer(currentProject.id, transfer.transfer_id)
+            const result = await service.transfers.deleteTransfer(currentProject.id, transfer.transfer_id)
             if (result.success) {
                 toast.success(`Transfer rule deleted successfully`)
                 if (onDelete) onDelete(transfer)
@@ -109,6 +109,7 @@ export function TransferDetail({ transfer, stops, onSave, onDelete }) {
             label={transfer.isNew ? "New Transfer" : "Transfer Details"}
             title={transfer.isNew ? "Create Transfer" : `${formData.from_stop_id} → ${formData.to_stop_id}`}
             onSave={handleSubmit}
+            onClose={onClose}
             loading={loading}
             actions={
                 !transfer.isNew && (

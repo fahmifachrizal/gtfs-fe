@@ -47,26 +47,6 @@ export function UserPreferences() {
     return null
   }
 
-  const handleProfileClick = () => {
-    navigate("/profile")
-  }
-
-  const handleProjectsClick = () => {
-    navigate("/projects")
-  }
-
-  const handleSettingsClick = () => {
-    navigate("/settings")
-  }
-
-  const handleSessionsClick = () => {
-    navigate("/sessions")
-  }
-
-  const handleSupportClick = () => {
-    navigate("/help")
-  }
-
   const onLogout = () => {
     handleLogout("/")
   }
@@ -121,18 +101,18 @@ export function UserPreferences() {
 
         <DropdownMenuSeparator />
 
-        {/* Main Menu Items */}
+        {/* Main Menu Items - Disabled */}
         <DropdownMenuGroup>
           <DropdownMenuItem
-            onClick={handleProfileClick}
-            className="cursor-pointer">
+            disabled
+            className="cursor-not-allowed opacity-50">
             <User className="mr-2 h-4 w-4" />
             <span>Profile</span>
           </DropdownMenuItem>
 
           <DropdownMenuItem
-            onClick={handleProjectsClick}
-            className="cursor-pointer">
+            disabled
+            className="cursor-not-allowed opacity-50">
             <FolderOpen className="mr-2 h-4 w-4" />
             <span>My Projects</span>
             {user.projects?.length > 0 && (
@@ -143,8 +123,8 @@ export function UserPreferences() {
           </DropdownMenuItem>
 
           <DropdownMenuItem
-            onClick={handleSettingsClick}
-            className="cursor-pointer">
+            disabled
+            className="cursor-not-allowed opacity-50">
             <Settings className="mr-2 h-4 w-4" />
             <span>Settings</span>
           </DropdownMenuItem>
@@ -152,68 +132,43 @@ export function UserPreferences() {
 
         <DropdownMenuSeparator />
 
-        {/* Theme Submenu */}
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger className="cursor-pointer">
-            {theme === "dark" ? (
-              <Moon className="mr-2 h-4 w-4" />
-            ) : theme === "light" ? (
-              <Sun className="mr-2 h-4 w-4" />
-            ) : (
-              <Monitor className="mr-2 h-4 w-4" />
-            )}
-            <span>Theme</span>
-          </DropdownMenuSubTrigger>
-          <DropdownMenuPortal>
-            <DropdownMenuSubContent className="bg-background/95 backdrop-blur-md border">
-              <DropdownMenuItem
-                onClick={() => setTheme("light")}
-                className="cursor-pointer">
-                <Sun className="mr-2 h-4 w-4" />
-                <span>Light</span>
-                {theme === "light" && <span className="ml-auto">✓</span>}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setTheme("dark")}
-                className="cursor-pointer">
-                <Moon className="mr-2 h-4 w-4" />
-                <span>Dark</span>
-                {theme === "dark" && <span className="ml-auto">✓</span>}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setTheme("system")}
-                className="cursor-pointer">
-                <Monitor className="mr-2 h-4 w-4" />
-                <span>System</span>
-                {theme === "system" && <span className="ml-auto">✓</span>}
-              </DropdownMenuItem>
-            </DropdownMenuSubContent>
-          </DropdownMenuPortal>
-        </DropdownMenuSub>
+        {/* Theme Submenu - Disabled */}
+        <DropdownMenuItem
+          disabled
+          className="cursor-not-allowed opacity-50">
+          {theme === "dark" ? (
+            <Moon className="mr-2 h-4 w-4" />
+          ) : theme === "light" ? (
+            <Sun className="mr-2 h-4 w-4" />
+          ) : (
+            <Monitor className="mr-2 h-4 w-4" />
+          )}
+          <span>Theme</span>
+        </DropdownMenuItem>
 
         <DropdownMenuSeparator />
 
-        {/* Security & Account */}
+        {/* Security & Account - Disabled */}
         <DropdownMenuGroup>
           <DropdownMenuItem
-            onClick={handleSessionsClick}
-            className="cursor-pointer">
+            disabled
+            className="cursor-not-allowed opacity-50">
             <Activity className="mr-2 h-4 w-4" />
             <span>Active Sessions</span>
           </DropdownMenuItem>
 
           {user.role === "admin" && (
             <DropdownMenuItem
-              onClick={() => navigate("/admin")}
-              className="cursor-pointer">
+              disabled
+              className="cursor-not-allowed opacity-50">
               <Shield className="mr-2 h-4 w-4" />
               <span>Admin Panel</span>
             </DropdownMenuItem>
           )}
 
           <DropdownMenuItem
-            onClick={handleSupportClick}
-            className="cursor-pointer">
+            disabled
+            className="cursor-not-allowed opacity-50">
             <HelpCircle className="mr-2 h-4 w-4" />
             <span>Help & Support</span>
           </DropdownMenuItem>

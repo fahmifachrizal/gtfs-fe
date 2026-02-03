@@ -51,6 +51,7 @@ export default function Map({
   onInstanceComplete = null,
   onProgress = null,
   rightPadding = 0,
+  bottomPadding = 0,
   onMarkerDragEnd = null, // New prop for handling marker drag
 }) {
   const { theme, resolvedTheme } = useTheme()
@@ -79,9 +80,7 @@ export default function Map({
             mapInstance.invalidateSize()
           }, 100)
         }}
-        whenReady={() => {
-          console.log("[Map] Container ready")
-        }}>
+        whenReady={() => {}}>
         <MapChild
           center={center}
           zoom={zoom}
@@ -94,6 +93,7 @@ export default function Map({
           onInstanceComplete={onInstanceComplete}
           onProgress={onProgress}
           rightPadding={rightPadding}
+          bottomPadding={bottomPadding}
           onMarkerDragEnd={onMarkerDragEnd}
         />
         <TileLayer
@@ -121,6 +121,7 @@ function MapChild({
   onProgress,
   bounds,
   rightPadding,
+  bottomPadding,
   onMarkerDragEnd,
 }) {
   const map = useMap()
@@ -131,8 +132,11 @@ function MapChild({
       // Check if bounds are valid (not [0,0], [0,0] unless intended)
       // bounds format: [[lat1, lon1], [lat2, lon2]]
       try {
+        // Account for right sidebar and bottom timeline by adding asymmetric padding
+        const basePadding = 80
         map.fitBounds(bounds, {
-          padding: [80, 80], // Increased padding for better visualization of routes
+          paddingTopLeft: [basePadding, basePadding],
+          paddingBottomRight: [basePadding + rightPadding, basePadding + bottomPadding],
           maxZoom: 16,
           animate: true,
           duration: 0.5
@@ -141,33 +145,23 @@ function MapChild({
         console.warn("Invalid bounds:", bounds)
       }
     }
-  }, [bounds, map])
+  }, [bounds, map, rightPadding, bottomPadding])
 
   useEffect(() => {
+    // When bounds are present fitBounds already accounts for padding –
+    // do nothing here so the two effects don't race each other.
+    if (bounds) return
+
     if (rightPadding > 0) {
-      // Calculate offset to keeping "center" visible in the remaining space
-      // Visual center shifts left by rightPadding / 2
-      // We need to shift the View Right (map center moves right visually) -> No.
-      // We want the 'center' coordinate to appear at (Width - rightPadding) / 2.
-      // The container geometric center is Width / 2.
-      // So we want 'center' to be at (Width/2) - (rightPadding/2).
-      // It is shifted Left by rightPadding/2.
-      // So we need to center the map on a point that is Right of 'center' by rightPadding/2.
-
       const offset = rightPadding / 2
-      const centerPoint = map.project(center, zoom)
+      const centerPoint = map.project(center, map.getZoom())
       const targetPoint = centerPoint.add([offset, 0])
-      const targetLatLng = map.unproject(targetPoint, zoom)
-
+      const targetLatLng = map.unproject(targetPoint, map.getZoom())
       map.setView(targetLatLng, zoom)
-    } else if (!bounds) { // Only set view if no bounds are provided to avoid conflict? Or let bounds override?
-      // If bounds are present, fitBounds handles the view.
-      // If ONLY center/zoom are present, setView.
-      // But usually user interaction changes center.
-      // We should only force setView if center changed explicitly?
+    } else {
       map.setView(center, zoom)
     }
-  }, [center, zoom, map, rightPadding, bounds])
+  }, [center, zoom, map, rightPadding, bottomPadding, bounds])
 
   useEffect(() => {
     const mapContainer = map.getContainer()
@@ -202,33 +196,89 @@ function MapChild({
 
         const isRouteStop = type === "route" || type === "stop"
 
-        // Determine if marker should be draggable
-        const draggable = isDraggable || isWaypoint || type === 'waypoint' || type === 'preview-waypoint'
+        // Determine if marker should be draggable - only if explicitly set to true
+        const draggable = isDraggable === true
 
         let icon
         if (isPreview) {
-          // Preview waypoint marker (semi-transparent)
-          const size = 14
+          // Preview waypoint marker (semi-transparent, uses route color if available)
+          const size = 12
+          const markerColor = feature.properties?.markerColor || '3388ff'
+          const previewColor = markerColor === 'orange' ? 'rgba(249, 115, 22, 0.5)' : `rgba(51, 136, 255, 0.5)`
+          const borderColor = markerColor === 'orange' ? 'rgba(249, 115, 22, 0.8)' : `rgba(51, 136, 255, 0.8)`
+
           icon = L.divIcon({
             className: "preview-waypoint-marker",
             html: `
               <div style="
                 width: ${size}px;
                 height: ${size}px;
-                background-color: rgba(34, 197, 94, 0.5);
-                border: 2px solid rgba(34, 197, 94, 0.8);
+                background-color: ${previewColor};
+                border: 2px solid ${borderColor};
                 border-radius: 50%;
                 box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-                z-index: 1500;
+                z-index: 1900;
+              "></div>
+            `,
+            iconSize: [size + 4, size + 4],
+            iconAnchor: [size / 2 + 2, size / 2 + 2],
+          })
+        } else if (type === 'stop' && feature.properties?.markerColor === 'white') {
+          // White stop marker (circular, not draggable) - for Playground
+          const size = 12
+          const color = "#ffffff"
+          const borderColor = currentTheme === "dark" ? "#666" : "#333"
+
+          icon = L.divIcon({
+            className: "stop-marker-white",
+            html: `
+              <div style="
+                width: ${size}px;
+                height: ${size}px;
+                background-color: ${color};
+                border: 2px solid ${borderColor};
+                border-radius: 50%;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                cursor: pointer;
+                z-index: 1600;
+              "></div>
+            `,
+            iconSize: [size + 4, size + 4],
+            iconAnchor: [size / 2 + 2, size / 2 + 2],
+          })
+        } else if (type === 'stop' && feature.properties?.markerColor === 'red') {
+          // Red stop marker (circular, not draggable)
+          // Z-index: 1600 (between waypoint and selected)
+          const size = 12
+          const color = "#ef4444"
+          const borderColor = currentTheme === "dark" ? "#333" : "white"
+
+          icon = L.divIcon({
+            className: "stop-marker-red",
+            html: `
+              <div style="
+                width: ${size}px;
+                height: ${size}px;
+                background-color: ${color};
+                border: 2px solid ${borderColor};
+                border-radius: 50%;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                cursor: pointer;
+                z-index: 1600;
               "></div>
             `,
             iconSize: [size + 4, size + 4],
             iconAnchor: [size / 2 + 2, size / 2 + 2],
           })
         } else if (isWaypoint || type === 'waypoint') {
-          // Custom waypoint marker (draggable)
-          const size = 14
-          const color = "#22c55e"
+          // Custom waypoint marker (blue/route color, draggable only if selected)
+          const markerColor = feature.properties?.markerColor || '3388ff'
+          const isSelected = feature.properties?.isSelected || false
+          const size = isSelected ? 16 : 12
+          const borderWidth = isSelected ? 3 : 2
+          const color = markerColor === 'orange' ? '#f97316' : `#${markerColor}`
+          const borderColor = isSelected ? 'white' : currentTheme === "dark" ? "#333" : "white"
+
           icon = L.divIcon({
             className: "waypoint-marker",
             html: `
@@ -236,25 +286,21 @@ function MapChild({
                 width: ${size}px;
                 height: ${size}px;
                 background-color: ${color};
-                border: 3px solid white;
+                border: ${borderWidth}px solid ${borderColor};
                 border-radius: 50%;
                 box-shadow: 0 2px 6px rgba(0,0,0,0.4);
                 cursor: ${draggable ? 'grab' : 'pointer'};
-                z-index: 1500;
+                z-index: ${isSelected ? 2000 : 1500};
               "></div>
             `,
-            iconSize: [size + 6, size + 6],
-            iconAnchor: [size / 2 + 3, size / 2 + 3],
+            iconSize: [size + borderWidth * 2, size + borderWidth * 2],
+            iconAnchor: [size / 2 + borderWidth, size / 2 + borderWidth],
           })
         } else if (isRouteStop) {
-          const color = formatRouteColor(route_color)
-          const size = isSelected ? 22 : 16
-          const borderWidth = isSelected ? 4 : 3
-          const borderColor = isSelected
-            ? "#FFD700"
-            : currentTheme === "dark"
-              ? "#333"
-              : "white"
+          // Route stops should be red like in the legend
+          const size = 12
+          const color = "#ef4444" // Red color matching legend
+          const borderColor = currentTheme === "dark" ? "#333" : "white"
 
           icon = L.divIcon({
             className: "route-stop-marker",
@@ -263,57 +309,38 @@ function MapChild({
                 width: ${size}px;
                 height: ${size}px;
                 background-color: ${color};
-                border: ${borderWidth}px solid ${borderColor};
+                border: 2px solid ${borderColor};
                 border-radius: 50%;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-                position: relative;
-                z-index: ${isSelected ? 2000 : 1000};
+                box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                cursor: pointer;
+                z-index: 1600;
               "></div>
             `,
-            iconSize: [size + borderWidth * 2, size + borderWidth * 2],
-            iconAnchor: [size / 2 + borderWidth, size / 2 + borderWidth],
+            iconSize: [size + 4, size + 4],
+            iconAnchor: [size / 2 + 2, size / 2 + 2],
           })
         } else {
-          // Helper to convert hex to rgba
-          const hexToRgba = (hex, alpha) => {
-            const r = parseInt(hex.slice(1, 3), 16)
-            const g = parseInt(hex.slice(3, 5), 16)
-            const b = parseInt(hex.slice(5, 7), 16)
-            return `rgba(${r}, ${g}, ${b}, ${alpha})`
-          }
-
-          const alpha = isPreview ? 0.5 : 1
-
-          const bgHex = isSelected
-            ? "#fbbf24"
-            : currentTheme === "dark"
-              ? "#374151"
-              : "#f3f4f6"
-
-          const bgColor = hexToRgba(bgHex, alpha)
-
-          const borderHex = isSelected
-            ? "#d97706"
-            : currentTheme === "dark"
-              ? "#6b7280"
-              : "#9ca3af"
-
-          const borderColor = hexToRgba(borderHex, alpha)
+          // Regular stops (StopsPage) - should be red like legend
+          const size = 12
+          const color = "#ef4444" // Red color matching legend
+          const borderColor = currentTheme === "dark" ? "#333" : "white"
 
           icon = L.divIcon({
             className: "regular-stop-marker",
             html: `
               <div style="
-                width: 12px;
-                height: 12px;
-                background-color: ${bgColor};
+                width: ${size}px;
+                height: ${size}px;
+                background-color: ${color};
                 border: 2px solid ${borderColor};
                 border-radius: 50%;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                cursor: pointer;
+                z-index: 1600;
               "></div>
             `,
-            iconSize: [12, 12],
-            iconAnchor: [6, 6],
+            iconSize: [size + 4, size + 4],
+            iconAnchor: [size / 2 + 2, size / 2 + 2],
           })
         }
 

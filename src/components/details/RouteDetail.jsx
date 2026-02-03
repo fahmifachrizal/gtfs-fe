@@ -1,8 +1,8 @@
-import { projectService } from "@/services/projectService"
+import { service } from "@/services"
 import { useUser } from "@/contexts/UserContext"
 import { useEditorContext } from "@/contexts/EditorContext"
 import { toast } from "sonner"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Route, Save, Search, Plus, GripVertical, X, AlertCircle } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -84,6 +84,41 @@ export function RouteDetail({ route, initialStops, onSave, onClose }) {
         setContextUnsavedChanges(hasUnsavedChanges)
     }, [hasUnsavedChanges, setContextUnsavedChanges])
 
+    // Define handleSaveStops with useCallback before it's used in useEffect
+    const handleSaveStops = useCallback(async () => {
+        setLoading(true)
+        try {
+            await service.routes.assignStopsToRouteWithDirection(
+                currentProject.id,
+                savedRoute.route_id,
+                displayedStops, // Only save current direction's stops
+                selectedDirection
+            )
+            toast.success(`Route stops (${selectedDirection === 0 ? "Outbound" : "Inbound"}) saved successfully`)
+            setHasUnsavedChanges(false)
+            if (onSave) onSave(savedRoute)
+
+            // Re-fetch to sync with DB and update context state
+            const response = await service.routes.getRouteStops(currentProject.id, savedRoute.route_id)
+            if (response.success && response.data) {
+                const mappedStops = response.data.map(rs => ({
+                    ...rs.stop,
+                    stop_sequence: rs.stop_sequence,
+                    direction_id: rs.direction_id ?? 0
+                }))
+                setAssignedStops(mappedStops)
+
+                // Update context state so RoutesPage map display is synced
+                updateRouteStops(savedRoute.route_id, mappedStops, selectedDirection)
+            }
+
+        } catch (error) {
+            toast.error(error.message || "Failed to save stops")
+        } finally {
+            setLoading(false)
+        }
+    }, [currentProject, savedRoute, displayedStops, selectedDirection, onSave, updateRouteStops, setAssignedStops, setHasUnsavedChanges, setLoading])
+
     // Listen for save requests from the layout
     useEffect(() => {
         const handleSaveRequest = () => {
@@ -118,7 +153,7 @@ export function RouteDetail({ route, initialStops, onSave, onClose }) {
         if (currentProject && route?.route_id) {
             const fetchRouteStops = async () => {
                 try {
-                    const response = await projectService.getRouteStops(currentProject.id, route.route_id)
+                    const response = await service.routes.getRouteStops(currentProject.id, route.route_id)
 
                     if (response.success && response.data) {
                         // Backend returns RouteStop[] with includes Stop
@@ -142,7 +177,7 @@ export function RouteDetail({ route, initialStops, onSave, onClose }) {
 
     const fetchAgencies = async () => {
         try {
-            const response = await projectService.getAgencies(currentProject.id)
+            const response = await service.agencies.getAgencies(currentProject.id)
             if (response.success && response.data) {
                 setAgencies(response.data)
             }
@@ -165,7 +200,7 @@ export function RouteDetail({ route, initialStops, onSave, onClose }) {
         }
 
         try {
-            const response = await projectService.getStops(currentProject.id, {
+            const response = await service.stops.getStops(currentProject.id, {
                 search: query,
                 limit: 5
             })
@@ -263,11 +298,11 @@ export function RouteDetail({ route, initialStops, onSave, onClose }) {
             let result
             if (route?.route_id) {
                 // Update existing route
-                result = await projectService.updateRoute(currentProject.id, route.route_id, submitData)
+                result = await service.routes.updateRoute(currentProject.id, route.route_id, submitData)
                 toast.success("Route updated successfully")
             } else {
                 // Create new route
-                result = await projectService.createRoute(currentProject.id, submitData)
+                result = await service.routes.createRoute(currentProject.id, submitData)
                 toast.success("Route created successfully")
             }
 
@@ -341,40 +376,6 @@ export function RouteDetail({ route, initialStops, onSave, onClose }) {
 
     const handleDragEnd = () => {
         setDraggedIndex(null)
-    }
-
-    const handleSaveStops = async () => {
-        setLoading(true)
-        try {
-            await projectService.assignStopsToRoute(
-                currentProject.id,
-                savedRoute.route_id,
-                displayedStops, // Only save current direction's stops
-                selectedDirection
-            )
-            toast.success(`Route stops (${selectedDirection === 0 ? "Outbound" : "Inbound"}) saved successfully`)
-            setHasUnsavedChanges(false)
-            if (onSave) onSave(savedRoute)
-
-            // Re-fetch to sync with DB and update context state
-            const response = await projectService.getRouteStops(currentProject.id, savedRoute.route_id)
-            if (response.success && response.data) {
-                const mappedStops = response.data.map(rs => ({
-                    ...rs.stop,
-                    stop_sequence: rs.stop_sequence,
-                    direction_id: rs.direction_id ?? 0
-                }))
-                setAssignedStops(mappedStops)
-
-                // Update context state so RoutesPage map display is synced
-                updateRouteStops(savedRoute.route_id, mappedStops, selectedDirection)
-            }
-
-        } catch (error) {
-            toast.error(error.message || "Failed to save stops")
-        } finally {
-            setLoading(false)
-        }
     }
 
     const handleCloseAttempt = () => {

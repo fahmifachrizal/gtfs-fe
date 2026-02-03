@@ -18,7 +18,10 @@ export default function MapMarker(color = "orange") {
 
   const bgColor = colorMap[color] || colorMap.orange
 
-  const className = cn("w-2 h-2 z-0 rounded border-none", bgColor)
+  // Blue markers get white border for better visibility
+  const borderClass = color === "blue" ? "border-2 border-white" : "border-none"
+
+  const className = cn("w-3 h-3 z-0 rounded-full", bgColor, borderClass)
 
   return `<div class="${className}"></div>`
 }

@@ -1,4 +1,4 @@
-import { projectService } from "@/services/projectService"
+import { service } from "@/services"
 import { useUser } from "@/contexts/UserContext"
 import { toast } from "sonner"
 import { useState, useEffect } from "react"
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DetailLayout } from "./DetailLayout"
 
-export function CalendarDetail({ calendar, onSave }) {
+export function CalendarDetail({ calendar, onSave, onClose }) {
     const { currentProject } = useUser()
     const [loading, setLoading] = useState(false)
 
@@ -78,9 +78,9 @@ export function CalendarDetail({ calendar, onSave }) {
 
             let result
             if (calendar.isNew) {
-                result = await projectService.createCalendar(currentProject.id, calendarData)
+                result = await service.calendar.createCalendar(currentProject.id, calendarData)
             } else {
-                result = await projectService.updateCalendar(currentProject.id, calendar.service_id, calendarData)
+                result = await service.calendar.updateCalendar(currentProject.id, calendar.service_id, calendarData)
             }
 
             if (result.success) {
@@ -103,6 +103,7 @@ export function CalendarDetail({ calendar, onSave }) {
             label={calendar.isNew ? "New Service" : "Service Details"}
             title={calendar.isNew ? "Create Service" : calendar.service_id}
             onSave={handleSubmit}
+            onClose={onClose}
             loading={loading}
         >
             <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">

@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useMemo, useCallback } from "react"
 import { useUser } from "@/contexts/UserContext"
 import { getApiUrl } from "@/config/api"
-import { projectService } from "@/services/projectService"
+import { service } from "../services"
 
 const EditorContext = createContext()
 
@@ -30,14 +30,16 @@ export function EditorProvider({ children }) {
   const [activeDetail, setActiveDetail] = useState(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [detailTitle, setDetailTitle] = useState('Details')
 
   // Route Details State - centralized storage for route details with stops
   const [routeDetails, setRouteDetails] = useState({})
   const [loadingRouteDetails, setLoadingRouteDetails] = useState(new Set())
 
-  const setDetailView = useCallback((content) => {
+  const setDetailView = useCallback((content, title = 'Details') => {
     setActiveDetail(content)
     setIsDetailOpen(!!content)
+    setDetailTitle(title)
     setHasUnsavedChanges(false) // Reset unsaved changes when opening new detail
   }, [])
 
@@ -114,7 +116,7 @@ export function EditorProvider({ children }) {
     const token = user?.token || localStorage.getItem('auth_token');
 
     if (!token) {
-      console.warn("[EditorContext] Cannot fetch data: User not authenticated")
+      // console.warn("[EditorContext] Cannot fetch data: User not authenticated")
       return { error: "User not authenticated" }
     }
 
@@ -128,7 +130,7 @@ export function EditorProvider({ children }) {
       }).toString()
 
       const fullUrl = getApiUrl(`/api/gtfs/${type}?${query}`)
-      console.log(`[EditorContext] Fetching ${type}:`, fullUrl);
+      // console.log(`[EditorContext] Fetching ${type}:`, fullUrl);
 
       const response = await fetch(fullUrl, {
         headers: {
@@ -137,14 +139,14 @@ export function EditorProvider({ children }) {
         },
       })
 
-      console.log(`[EditorContext] Response status: ${response.status}`);
+      // console.log(`[EditorContext] Response status: ${response.status}`);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 
       const data = await response.json()
-      console.log(`[EditorContext] Received data for ${type}:`, data);
+      // console.log(`[EditorContext] Received data for ${type}:`, data);
 
       if (data.success === false) {
         throw new Error(data.message || `Failed to fetch ${type}`)
@@ -254,14 +256,14 @@ export function EditorProvider({ children }) {
 
     const projectId = currentProject?.id || JSON.parse(localStorage.getItem('current_project') || '{}')?.id
     if (!projectId) {
-      console.warn("[EditorContext] Cannot fetch route details: No project selected")
+      // console.warn("[EditorContext] Cannot fetch route details: No project selected")
       return null
     }
 
     setLoadingRouteDetails(prev => new Set([...prev, routeId]))
 
     try {
-      const response = await projectService.getRouteDetails(projectId, routeId)
+      const response = await service.routes.getRouteDetails(projectId, routeId)
 
       if (response.success && response.data?.route) {
         const route = response.data.route
@@ -303,7 +305,7 @@ export function EditorProvider({ children }) {
         return route
       }
     } catch (error) {
-      console.error("[EditorContext] Failed to fetch route details:", error)
+      // console.error("[EditorContext] Failed to fetch route details:", error)
       // Store empty details to prevent repeated failed requests
       setRouteDetails(prev => ({
         ...prev,
@@ -406,7 +408,7 @@ export function EditorProvider({ children }) {
     const token = user?.token || localStorage.getItem('auth_token')
 
     if (!token || !projectId) {
-      console.warn("[EditorContext] fetchAllCounts: No token or projectId")
+      // console.warn("[EditorContext] fetchAllCounts: No token or projectId")
       return
     }
 
@@ -430,12 +432,12 @@ export function EditorProvider({ children }) {
           })
 
           if (!response.ok) {
-            console.warn(`[EditorContext] fetchAllCounts: ${type} returned ${response.status}`)
+            // console.warn(`[EditorContext] fetchAllCounts: ${type} returned ${response.status}`)
             return { type, count: 0 }
           }
 
           const data = await response.json()
-          console.log(`[EditorContext] fetchAllCounts: ${type} response:`, data)
+          // console.log(`[EditorContext] fetchAllCounts: ${type} response:`, data)
 
           // Extract count from response
           let count = 0
@@ -461,7 +463,7 @@ export function EditorProvider({ children }) {
             count = data.data.length
           }
 
-          console.log(`[EditorContext] fetchAllCounts: ${type} extracted count: ${count}`)
+          // console.log(`[EditorContext] fetchAllCounts: ${type} extracted count: ${count}`)
 
           // Map stop-times back to stop_times for consistency
           const mappedType = type === 'stop-times' ? 'stop_times' : type
@@ -483,7 +485,7 @@ export function EditorProvider({ children }) {
         }
       })
     } catch (error) {
-      console.error("[EditorContext] Failed to fetch counts:", error)
+      // console.error("[EditorContext] Failed to fetch counts:", error)
     }
   }, [currentProject, user])
 
@@ -503,15 +505,15 @@ export function EditorProvider({ children }) {
       fares: true, // Optional
     }
 
-    console.log("[EditorContext] Checking requirements:", {
-      agencyData: gtfsData.agency?.length,
-      agencyMeta: gtfsMeta.agency?.totalItems,
-      agencyStatus: newStatus.agency,
-      stopsData: gtfsData.stops?.length,
-      stopsMeta: gtfsMeta.stops?.totalItems,
-      stopsStatus: newStatus.stops,
-      newStatus
-    })
+    // console.log("[EditorContext] Checking requirements:", {
+    //   agencyData: gtfsData.agency?.length,
+    //   agencyMeta: gtfsMeta.agency?.totalItems,
+    //   agencyStatus: newStatus.agency,
+    //   stopsData: gtfsData.stops?.length,
+    //   stopsMeta: gtfsMeta.stops?.totalItems,
+    //   stopsStatus: newStatus.stops,
+    //   newStatus
+    // })
 
     setCompletionStatus(newStatus)
     return newStatus
@@ -561,6 +563,7 @@ export function EditorProvider({ children }) {
     // Detail View
     activeDetail,
     isDetailOpen,
+    detailTitle,
     setDetailView,
     closeDetail,
     hasUnsavedChanges,

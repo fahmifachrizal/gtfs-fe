@@ -19,6 +19,7 @@ export default function TripsPage() {
         handleSelectData,
         selectedData,
         setDetailView,
+        closeDetail,
         getMeta,
         updateMeta,
         updateMapData,
@@ -48,10 +49,11 @@ export default function TripsPage() {
                     onSave={(saved) => {
                         handleSaveTrip(saved)
                     }}
+                    onClose={closeDetail}
                 />
             )
         }
-    }, [selectedData, setDetailView])
+    }, [selectedData, setDetailView, closeDetail])
 
     const fetchTrips = async (pageNum = 1, search = "", resetPage = false) => {
         if (isLoading) return
@@ -136,6 +138,7 @@ export default function TripsPage() {
                 onSave={(saved) => {
                     handleSaveTrip(saved)
                 }}
+                onClose={closeDetail}
             />
         )
     }

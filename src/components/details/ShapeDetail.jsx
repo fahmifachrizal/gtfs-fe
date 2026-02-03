@@ -1,15 +1,16 @@
 "use client"
 
-import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef, useMemo } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MapPin, Trash2, GripVertical, Plus, Navigation, Edit2, Check, X, Save } from "lucide-react"
 import { toast } from "sonner"
 import { useUser } from "@/contexts/UserContext"
-import { projectService } from "@/services/projectService"
+import { service } from "@/services"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -24,43 +25,146 @@ import {
 export function ShapeDetail({ route, shape, initialDirection = 0, onSave, onClose, onDirectionChange, onWaypointHover, onWaypointDrag }) {
     const { currentProject } = useUser()
     const [isSaving, setIsSaving] = useState(false)
+    const [isLoading, setIsLoading] = useState(false)
     const [selectedDirection, setSelectedDirection] = useState(initialDirection)
     const [waypoints, setWaypoints] = useState([])
+    const [stops, setStops] = useState([])
+    const [selectedWaypointIndex, setSelectedWaypointIndex] = useState(null)
     const [deleteConfirm, setDeleteConfirm] = useState(null)
     const [hoveredIndex, setHoveredIndex] = useState(null)
     const [editingCoordinates, setEditingCoordinates] = useState(null)
     const [showUnsavedDialog, setShowUnsavedDialog] = useState(false)
     const initialWaypointsRef = useRef(null)
 
+    // Fetch route path and stops from backend
     useEffect(() => {
-        let newWaypoints = []
-        if (shape?.waypoints) {
-            newWaypoints = shape.waypoints
-        } else if (route?.directions) {
-            // Initialize waypoints from route stops for selected direction
-            const directionStops = route.directions[selectedDirection] || []
-            newWaypoints = directionStops.map((stop, index) => ({
-                id: `stop-${stop.stop_id}-${index}`,
-                type: 'stop',
-                stop_id: stop.stop_id,
-                stop_name: stop.stop_name,
-                lat: stop.stop_lat,
-                lon: stop.stop_lon,
-                sequence: index,
-                shape_dist_traveled: 0,
-            }))
+        if (!currentProject || !route?.route_id) return
+
+        const fetchRoutePathAndStops = async () => {
+            setIsLoading(true)
+            try {
+                const response = await service.routes.getRoutePathAndStops(
+                    currentProject.id,
+                    route.route_id,
+                    selectedDirection
+                )
+
+                if (response.success && response.data) {
+                    const { polyline, stops: fetchedStops } = response.data
+
+                    // Set stops (red markers)
+                    const stopsData = fetchedStops.map((stop, index) => ({
+                        id: `stop-${stop.stop_id}`,
+                        type: 'stop',
+                        stop_id: stop.stop_id,
+                        stop_name: stop.stop_name,
+                        lat: stop.stop_lat,
+                        lon: stop.stop_lon,
+                        sequence: stop.stop_sequence,
+                        distance: stop.distance,
+                    }))
+                    setStops(stopsData)
+
+                    // Set waypoints (blue markers - shape points)
+                    const waypointsData = polyline.map((pt, index) => ({
+                        id: `waypoint-${index}`,
+                        type: 'waypoint',
+                        lat: pt.latitude,
+                        lon: pt.longitude,
+                        sequence: pt.sequence,
+                        distance: pt.distance,
+                    }))
+                    setWaypoints(waypointsData)
+
+                    // Store initial state
+                    if (initialWaypointsRef.current === null) {
+                        initialWaypointsRef.current = JSON.stringify({
+                            waypoints: waypointsData,
+                            stops: stopsData
+                        })
+                    }
+
+                    // Notify parent immediately on load
+                    if (onWaypointDrag) {
+                        onWaypointDrag({
+                            waypoints: waypointsData,
+                            stops: stopsData,
+                            selectedWaypointIndex: null,
+                            routeColor: route?.route_color || '3388ff'
+                        })
+                    }
+                } else if (route?.directions) {
+                    // Fallback: Initialize from route stops if no shape exists
+                    const directionStops = route.directions[selectedDirection] || []
+                    const stopsData = directionStops.map((stop, index) => ({
+                        id: `stop-${stop.stop_id}-${index}`,
+                        type: 'stop',
+                        stop_id: stop.stop_id,
+                        stop_name: stop.stop_name,
+                        lat: stop.stop_lat,
+                        lon: stop.stop_lon,
+                        sequence: index,
+                        distance: 0,
+                    }))
+                    setStops(stopsData)
+                    setWaypoints(stopsData) // Use stops as waypoints for creating new shape
+
+                    if (initialWaypointsRef.current === null) {
+                        initialWaypointsRef.current = JSON.stringify({
+                            waypoints: stopsData,
+                            stops: stopsData
+                        })
+                    }
+
+                    // Notify parent immediately on load
+                    if (onWaypointDrag) {
+                        onWaypointDrag({
+                            waypoints: stopsData,
+                            stops: stopsData,
+                            selectedWaypointIndex: null,
+                            routeColor: route?.route_color || '3388ff'
+                        })
+                    }
+                }
+            } catch (error) {
+                console.error("[ShapeDetail] Failed to fetch path and stops:", error)
+                toast.error("Failed to load shape data")
+            } finally {
+                setIsLoading(false)
+            }
         }
-        setWaypoints(newWaypoints)
-        // Store initial state for unsaved changes detection
-        if (initialWaypointsRef.current === null) {
-            initialWaypointsRef.current = JSON.stringify(newWaypoints)
+
+        fetchRoutePathAndStops()
+    }, [currentProject, route, selectedDirection])
+
+    // Listen for waypoint drag updates from the map
+    useEffect(() => {
+        const handleWaypointDragUpdate = (event) => {
+            const { lat, lon, waypointIndex } = event.detail
+            if (waypointIndex !== undefined && waypointIndex === selectedWaypointIndex) {
+                setWaypoints(prev => {
+                    const newWaypoints = [...prev]
+                    if (newWaypoints[waypointIndex]) {
+                        newWaypoints[waypointIndex] = {
+                            ...newWaypoints[waypointIndex],
+                            lat: parseFloat(lat),
+                            lon: parseFloat(lon),
+                        }
+                    }
+                    return newWaypoints
+                })
+            }
         }
-    }, [shape, route, selectedDirection])
+
+        window.addEventListener('waypoint-drag-update', handleWaypointDragUpdate)
+        return () => window.removeEventListener('waypoint-drag-update', handleWaypointDragUpdate)
+    }, [selectedWaypointIndex])
 
     // Check if there are unsaved changes
     const hasUnsavedChanges = () => {
         if (initialWaypointsRef.current === null) return false
-        return JSON.stringify(waypoints) !== initialWaypointsRef.current
+        const currentState = JSON.stringify({ waypoints, stops })
+        return currentState !== initialWaypointsRef.current
     }
 
     // Handle close attempt - check for unsaved changes
@@ -78,10 +182,13 @@ export function ShapeDetail({ route, shape, initialDirection = 0, onSave, onClos
         onClose?.()
     }
 
-    // Notify parent when direction changes
-    useEffect(() => {
-        onDirectionChange?.(selectedDirection)
-    }, [selectedDirection, onDirectionChange])
+    // Handle direction button click - notify parent explicitly
+    const handleDirectionClick = (dirId) => {
+        if (dirId !== selectedDirection) {
+            setSelectedDirection(dirId)
+            onDirectionChange?.(dirId)
+        }
+    }
 
     const handleAddWaypoint = (afterIndex) => {
         if (afterIndex < 0 || afterIndex >= waypoints.length - 1) return
@@ -89,7 +196,7 @@ export function ShapeDetail({ route, shape, initialDirection = 0, onSave, onClos
         const prev = waypoints[afterIndex]
         const next = waypoints[afterIndex + 1]
 
-        // Calculate midpoint
+        // Calculate midpoint - halfway between prev and next
         const midLat = (prev.lat + next.lat) / 2
         const midLon = (prev.lon + next.lon) / 2
 
@@ -109,7 +216,9 @@ export function ShapeDetail({ route, shape, initialDirection = 0, onSave, onClos
             wp.sequence = index
         })
 
-        notifyWaypointChange(newWaypoints)
+        // Set the new waypoint as selected (active) so it's highlighted and draggable
+        setSelectedWaypointIndex(afterIndex + 1)
+        notifyWaypointChange(newWaypoints, afterIndex + 1)
         toast.success("Waypoint added - drag it on the map to adjust")
     }
 
@@ -124,6 +233,12 @@ export function ShapeDetail({ route, shape, initialDirection = 0, onSave, onClos
             newWaypoints.forEach((wp, i) => {
                 wp.sequence = i
             })
+            // Clear selection if deleting selected waypoint
+            if (selectedWaypointIndex === index) {
+                setSelectedWaypointIndex(null)
+            } else if (selectedWaypointIndex > index) {
+                setSelectedWaypointIndex(selectedWaypointIndex - 1)
+            }
             notifyWaypointChange(newWaypoints)
             toast.success("Waypoint deleted")
         }
@@ -135,9 +250,26 @@ export function ShapeDetail({ route, shape, initialDirection = 0, onSave, onClos
             newWaypoints.forEach((wp, i) => {
                 wp.sequence = i
             })
+            // Clear selection if deleting selected waypoint
+            if (selectedWaypointIndex === deleteConfirm.index) {
+                setSelectedWaypointIndex(null)
+            } else if (selectedWaypointIndex > deleteConfirm.index) {
+                setSelectedWaypointIndex(selectedWaypointIndex - 1)
+            }
             notifyWaypointChange(newWaypoints)
             toast.success(`Stop "${deleteConfirm.waypoint.stop_name}" removed from shape`)
             setDeleteConfirm(null)
+        }
+    }
+
+    // Handle waypoint click to select it
+    const handleWaypointClick = (index) => {
+        const waypoint = waypoints[index]
+        // Only allow selecting waypoints (not stops)
+        if (waypoint.type === 'waypoint') {
+            setSelectedWaypointIndex(selectedWaypointIndex === index ? null : index)
+            // Notify change to update map display
+            notifyWaypointChange(waypoints, selectedWaypointIndex === index ? null : index)
         }
     }
 
@@ -198,9 +330,8 @@ export function ShapeDetail({ route, shape, initialDirection = 0, onSave, onClos
 
         try {
             const shapeData = {
-                route_id: route.route_id,
-                shape_id: shape?.shape_id || `shape-${route.route_id}-${Date.now()}`,
-                waypoints: waypoints.map((wp, index) => ({
+                shape_id: shape?.shape_id || `shape-${route.route_id}-${selectedDirection}-${Date.now()}`,
+                points: waypoints.map((wp, index) => ({
                     shape_pt_lat: wp.lat,
                     shape_pt_lon: wp.lon,
                     shape_pt_sequence: index,
@@ -208,13 +339,13 @@ export function ShapeDetail({ route, shape, initialDirection = 0, onSave, onClos
                 })),
             }
 
-            const response = await projectService.saveShape(currentProject.id, shapeData)
+            const response = await service.shapes.saveShape(currentProject.id, shapeData)
 
             if (response.success) {
                 // Update the initial state reference after successful save
-                initialWaypointsRef.current = JSON.stringify(waypoints)
+                initialWaypointsRef.current = JSON.stringify({ waypoints, stops })
                 toast.success("Shape saved successfully")
-                onSave?.(response.shape)
+                onSave?.(response.data)
             } else {
                 throw new Error(response.message || "Failed to save shape")
             }
@@ -226,48 +357,56 @@ export function ShapeDetail({ route, shape, initialDirection = 0, onSave, onClos
         }
     }
 
-    const handleMouseEnterGap = (index) => {
-        setHoveredIndex(index)
-        const prev = waypoints[index]
-        const next = waypoints[index + 1]
-        const midLat = (prev.lat + next.lat) / 2
-        const midLon = (prev.lon + next.lon) / 2
-        onWaypointHover?.({ lat: midLat, lon: midLon })
+    const handleMouseEnterCard = (index) => {
+        // Show preview for gap after this card
+        if (index < waypoints.length - 1) {
+            setHoveredIndex(index)
+            const prev = waypoints[index]
+            const next = waypoints[index + 1]
+            const midLat = (prev.lat + next.lat) / 2
+            const midLon = (prev.lon + next.lon) / 2
+            onWaypointHover?.({ lat: midLat, lon: midLon })
+        }
     }
 
-    const handleMouseLeaveGap = () => {
+    const handleMouseLeaveCard = () => {
         setHoveredIndex(null)
         onWaypointHover?.(null)
     }
 
-    // Notify parent of waypoint changes - only on user modifications, not initial load
-    const notifyWaypointChange = (newWaypoints) => {
+    // Notify parent of waypoint changes - includes stops and selected waypoint index
+    const notifyWaypointChange = (newWaypoints, selectedIndex = selectedWaypointIndex) => {
         setWaypoints(newWaypoints)
-        onWaypointDrag?.(newWaypoints)
+
+        // Combine waypoints and stops for map display, with selected waypoint info
+        const mapData = {
+            waypoints: newWaypoints,
+            stops: stops,
+            selectedWaypointIndex: selectedIndex,
+            routeColor: route?.route_color || '3388ff'
+        }
+
+        onWaypointDrag?.(mapData)
     }
+
+    // Combine waypoints and stops into a single sorted list for display
+    const combinedList = useMemo(() => {
+        const combined = [...waypoints, ...stops]
+        // Sort by distance if available, otherwise maintain order
+        return combined.sort((a, b) => {
+            if (a.distance !== undefined && b.distance !== undefined) {
+                return a.distance - b.distance
+            }
+            return a.sequence - b.sequence
+        })
+    }, [waypoints, stops])
 
     return (
         <>
-            {/* Custom layout without dismiss button - shape editor always stays open */}
             <div className="space-y-3 h-full flex flex-col">
-                {/* Header - No close button */}
-                <div className="space-y-1 flex-none border-b pb-3">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                        <span className="text-[10px] uppercase tracking-wider font-semibold">
-                            Shape Editor
-                        </span>
-                    </div>
-                    <h2 className="text-lg font-bold truncate leading-tight">
-                        {shape ? "Edit Shape" : "Create Shape"}
-                    </h2>
-                    <p className="text-[10px] text-muted-foreground">
-                        Route: {route?.route_short_name || route?.route_long_name || 'Unknown'}
-                    </p>
-                </div>
-
-                {/* Content - Scrollable */}
-                <div className="flex-1 overflow-y-auto px-1 min-h-0">
-                    <div className="space-y-4">
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto min-h-0">
+                    <div className="space-y-3">
                         {/* Route Info */}
                         <div className="p-3 bg-muted/50 rounded-lg">
                             <div className="text-xs text-muted-foreground">Route</div>
@@ -285,65 +424,53 @@ export function ShapeDetail({ route, shape, initialDirection = 0, onSave, onClos
                         {route?.available_directions && route.available_directions.length > 1 && (
                             <div>
                                 <Label className="text-xs font-semibold mb-2 block">Direction</Label>
-                                <div className="flex bg-muted rounded-md p-0.5">
-                                    {route.available_directions.map((dirId) => (
-                                        <button
-                                            key={dirId}
-                                            type="button"
-                                            onClick={() => setSelectedDirection(dirId)}
-                                            className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-sm transition-colors ${
-                                                selectedDirection === dirId
-                                                    ? "bg-background shadow-sm text-foreground"
-                                                    : "text-muted-foreground hover:text-foreground"
-                                            }`}
-                                        >
-                                            {dirId === 0 ? "Outbound" : dirId === 1 ? "Inbound" : `Direction ${dirId}`}
-                                        </button>
-                                    ))}
-                                </div>
+                                <Tabs value={String(selectedDirection)} onValueChange={(v) => handleDirectionClick(Number(v))}>
+                                    <TabsList className="w-full">
+                                        {route.available_directions.map((dirId) => (
+                                            <TabsTrigger key={dirId} value={String(dirId)} className="flex-1">
+                                                {dirId === 0 ? "Outbound" : dirId === 1 ? "Inbound" : `Direction ${dirId}`}
+                                            </TabsTrigger>
+                                        ))}
+                                    </TabsList>
+                                </Tabs>
                             </div>
                         )}
 
                         <Separator />
 
-                        {/* Instructions */}
-                        <div className="text-sm space-y-2">
-                            <p className="text-muted-foreground">
-                                Define the path vehicles travel along this route by:
-                            </p>
-                            <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-                                <li>Hover between waypoints to add intermediate points</li>
-                                <li>Drag waypoints on the map to adjust the path</li>
-                                <li>Delete waypoints that are not needed</li>
-                                <li>Stops can be deleted from the shape (with confirmation)</li>
-                            </ul>
-                        </div>
-
-                        <Separator />
-
-                        {/* Waypoints List */}
-                        <div>
+                        {/* Waypoints and Stops List */}
+                        <div className="flex-1 min-h-0 flex flex-col">
                             <Label className="text-sm font-semibold mb-3 block">
-                                Waypoints ({waypoints.length})
+                                Waypoints ({waypoints.length}) & Stops ({stops.length})
                             </Label>
 
-                            <div className="space-y-1 max-h-[400px] overflow-y-auto">
-                            {waypoints.map((waypoint, index) => (
+                            <div className="space-y-1 flex-1 overflow-y-auto">
+                            {combinedList.map((waypoint) => {
+                                // Find actual index in waypoints array for operations
+                                const waypointIndex = waypoints.findIndex(w => w.id === waypoint.id)
+                                const index = waypointIndex >= 0 ? waypointIndex : -1
+                                return (
                                 <React.Fragment key={waypoint.id}>
                                     {/* Waypoint Item */}
                                     <div
-                                        className={`flex items-center gap-2 p-2 rounded border ${
+                                        className={`flex items-center gap-2 p-2 rounded-lg border transition-all ${
                                             waypoint.type === 'stop'
-                                                ? 'bg-primary/5 border-primary/20'
-                                                : 'bg-muted/30 border-border'
+                                                ? 'bg-muted/30 border-border'
+                                                : selectedWaypointIndex === index
+                                                    ? 'bg-accent border-accent-foreground/20 border-2 shadow-sm cursor-pointer'
+                                                    : 'bg-card border-border cursor-pointer hover:bg-accent/50 hover:border-accent-foreground/20'
                                         }`}
+                                        onClick={() => waypoint.type === 'waypoint' && handleWaypointClick(index)}
+                                        onMouseEnter={() => handleMouseEnterCard(index)}
+                                        onMouseLeave={handleMouseLeaveCard}
                                     >
                                         <GripVertical className="w-4 h-4 text-muted-foreground shrink-0" />
                                         <div className="flex-1 min-w-0">
                                             {waypoint.type === 'stop' ? (
                                                 <div>
                                                     <div className="flex items-center gap-2">
-                                                        <MapPin className="w-3 h-3 text-primary shrink-0" />
+                                                        <div className="w-3 h-3 rounded-full bg-red-500 shrink-0" />
+                                                        <MapPin className="w-3 h-3 text-red-600 shrink-0" />
                                                         <span className="text-sm font-medium truncate">
                                                             {waypoint.stop_name}
                                                         </span>
@@ -408,9 +535,23 @@ export function ShapeDetail({ route, shape, initialDirection = 0, onSave, onClos
                                             ) : (
                                                 <div>
                                                     <div className="flex items-center gap-2">
-                                                        <Navigation className="w-3 h-3 text-muted-foreground shrink-0" />
-                                                        <span className="text-sm text-muted-foreground">
+                                                        <div className={`w-3 h-3 rounded-full shrink-0 ${
+                                                            selectedWaypointIndex === index
+                                                                ? 'bg-orange-500'
+                                                                : 'bg-blue-500'
+                                                        }`} />
+                                                        <Navigation className={`w-3 h-3 shrink-0 ${
+                                                            selectedWaypointIndex === index
+                                                                ? 'text-orange-600'
+                                                                : 'text-blue-600'
+                                                        }`} />
+                                                        <span className={`text-sm ${
+                                                            selectedWaypointIndex === index
+                                                                ? 'font-semibold text-foreground'
+                                                                : 'text-muted-foreground'
+                                                        }`}>
                                                             Waypoint {index + 1}
+                                                            {selectedWaypointIndex === index && ' (Selected)'}
                                                         </span>
                                                     </div>
                                                     {editingCoordinates?.index === index ? (
@@ -482,35 +623,28 @@ export function ShapeDetail({ route, shape, initialDirection = 0, onSave, onClos
                                         </Button>
                                     </div>
 
-                                    {/* Gap for adding waypoints */}
-                                    {index < waypoints.length - 1 && (
+                                    {/* Gap for adding waypoints - only visible on card hover */}
+                                    {index < waypoints.length - 1 && hoveredIndex === index && (
                                         <div
-                                            className={`relative h-6 flex items-center justify-center cursor-pointer group ${
-                                                hoveredIndex === index ? 'bg-primary/10' : ''
-                                            }`}
-                                            onMouseEnter={() => handleMouseEnterGap(index)}
-                                            onMouseLeave={handleMouseLeaveGap}
+                                            className="relative h-8 flex items-center justify-center cursor-pointer bg-primary/10 animate-in fade-in duration-200"
                                             onClick={() => handleAddWaypoint(index)}
                                         >
                                             <div className="h-px w-full bg-border absolute" />
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className={`h-6 px-2 bg-background border transition-all ${
-                                                    hoveredIndex === index
-                                                        ? 'opacity-100 scale-100'
-                                                        : 'opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100'
-                                                }`}
+                                                className="h-6 px-2 bg-background border shadow-sm"
                                             >
                                                 <Plus className="w-3 h-3" />
                                             </Button>
                                         </div>
                                     )}
                                 </React.Fragment>
-                            ))}
+                                )
+                            })}
+                        </div>
                         </div>
                     </div>
-                </div>
                 </div>
 
                 {/* Footer with Save and Close buttons */}

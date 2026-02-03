@@ -1,4 +1,4 @@
-import { projectService } from "@/services/projectService"
+import { service } from "@/services"
 import { useUser } from "@/contexts/UserContext"
 import { toast } from "sonner"
 import { useState, useEffect } from "react"
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DetailLayout } from "./DetailLayout"
 
-export function FareDetail({ fare, onSave }) {
+export function FareDetail({ fare, onSave, onClose }) {
     const { currentProject } = useUser()
     const [loading, setLoading] = useState(false)
 
@@ -62,9 +62,9 @@ export function FareDetail({ fare, onSave }) {
 
             let result
             if (fare.isNew) {
-                result = await projectService.createFare(currentProject.id, fareData)
+                result = await service.fares.createFare(currentProject.id, fareData)
             } else {
-                result = await projectService.updateFare(currentProject.id, fare.fare_id, fareData)
+                result = await service.fares.updateFare(currentProject.id, fare.fare_id, fareData)
             }
 
             if (result.success) {
@@ -84,6 +84,7 @@ export function FareDetail({ fare, onSave }) {
             label={fare.isNew ? "New Fare" : "Fare Details"}
             title={fare.isNew ? "Create Fare" : fare.fare_id}
             onSave={handleSubmit}
+            onClose={onClose}
             loading={loading}
         >
             <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">

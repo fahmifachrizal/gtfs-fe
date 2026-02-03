@@ -9,7 +9,6 @@ import {
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu"
 import {
-  Home,
   FolderOpen,
 } from "lucide-react"
 
@@ -51,24 +50,8 @@ export function MainMenu() {
   return (
     <NavigationMenu className="justify-start">
       <NavigationMenuList className="flex items-center justify-start space-x-0">
-        {/* Home */}
-        <NavigationMenuItem>
-          <NavigationMenuLink
-            asChild
-            className={cn(
-              navigationMenuTriggerStyle(),
-              "h-8 px-3 py-1 text-sm",
-              location.pathname === "/" && " bg-transparent text-accent-foreground"
-            )}>
-            <Link to="/" className="flex items-center">
-              <Home className="mr-1.5 h-3.5 w-3.5" />
-              Home
-            </Link>
-          </NavigationMenuLink>
-        </NavigationMenuItem>
-
         {/* Projects */}
-        <NavigationMenuItem>
+        <NavigationMenuItem className="h-full flex justify-center items-center">
           <NavigationMenuLink
             asChild
             className={cn(
@@ -82,8 +65,6 @@ export function MainMenu() {
             </Link>
           </NavigationMenuLink>
         </NavigationMenuItem>
-
-
       </NavigationMenuList>
     </NavigationMenu>
   )

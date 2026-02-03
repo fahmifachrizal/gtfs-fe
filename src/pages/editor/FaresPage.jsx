@@ -63,6 +63,7 @@ export default function FaresPage() {
         handleSelectData,
         selectedData,
         setDetailView,
+        closeDetail,
         getMeta,
         updateMeta,
         clearMap,
@@ -89,10 +90,11 @@ export default function FaresPage() {
                     onSave={(saved) => {
                         handleSaveFare(saved)
                     }}
+                    onClose={closeDetail}
                 />
             )
         }
-    }, [selectedData, setDetailView])
+    }, [selectedData, setDetailView, closeDetail])
 
     const fetchFares = async (pageNum = 1, search = "", resetPage = false) => {
         if (isLoading) return
@@ -176,6 +178,7 @@ export default function FaresPage() {
                 onSave={(saved) => {
                     handleSaveFare(saved)
                 }}
+                onClose={closeDetail}
             />
         )
     }

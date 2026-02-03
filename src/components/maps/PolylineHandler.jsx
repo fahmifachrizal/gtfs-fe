@@ -35,7 +35,6 @@ const loadSnakeAnimPlugin = () => {
   }
 
   snakeAnimLoading = true
-  console.log("[SnakeAnim] Starting to load plugin...")
 
   return new Promise(async (resolve, reject) => {
     try {
@@ -85,11 +84,10 @@ export default function PolylineHandler({
 
     loadSnakeAnimPlugin()
       .then(() => {
-        console.log("[PolylineHandler] Plugin ready")
         setPluginReady(true)
       })
       .catch((err) => {
-        console.error("[PolylineHandler] Plugin failed to load:", err)
+        // console.error("[PolylineHandler] Plugin failed to load:", err)
       })
   }, [map])
 
@@ -156,10 +154,6 @@ export default function PolylineHandler({
       if (!polyline) return
 
       try {
-        console.log(
-          `[PolylineHandler] Removing instance ${instanceId} from route ${routeId}`
-        )
-
         if (polyline.removeSnake) {
           polyline.removeSnake()
         }
@@ -175,14 +169,8 @@ export default function PolylineHandler({
           routeId,
           Math.max(0, currentCount - 1)
         )
-
-        console.log(
-          `[PolylineHandler] Route ${routeId} active count: ${activeCountByRouteRef.current.get(
-            routeId
-          )}`
-        )
       } catch (error) {
-        console.error(`[PolylineHandler] Error removing instance:`, error)
+        // console.error(`[PolylineHandler] Error removing instance:`, error)
       }
     },
     [map]
@@ -192,7 +180,6 @@ export default function PolylineHandler({
   const createInstance = useCallback(
     (route) => {
       if (!map || !pluginReady) {
-        console.log("[PolylineHandler] Cannot create: map or plugin not ready")
         return null
       }
 
@@ -215,25 +202,16 @@ export default function PolylineHandler({
 
       // Check max instances limit for this route
       if (currentActive >= routeConfig.maxInstances) {
-        console.log(
-          `[PolylineHandler] Route ${routeId}: Max instances (${routeConfig.maxInstances}) reached. Active: ${currentActive}`
-        )
         return null
       }
 
       const coords = getCoordinates(geojsonData)
 
       if (coords.length < 2) {
-        console.warn(
-          `[PolylineHandler] Route ${routeId}: Insufficient coordinates`
-        )
         return null
       }
 
       const instanceId = `${routeId}-${instanceCounterRef.current++}-${Date.now()}`
-      console.log(
-        `[PolylineHandler] Creating instance ${instanceId}. Route ${routeId} active: ${currentActive}`
-      )
 
       try {
         const polyline = L.polyline(coords, {
@@ -251,17 +229,12 @@ export default function PolylineHandler({
             id: instanceId,
             speed: routeConfig.speed,
             autoRestart: false,
-            onStart: () => {
-              console.log(`[PolylineHandler] Instance ${instanceId} started`)
-            },
             onProgress: (polyline, progress, latLng) => {
               if (onProgress) {
                 onProgress(instanceId, routeId, progress, latLng)
               }
             },
             onEnd: () => {
-              console.log(`[PolylineHandler] Instance ${instanceId} completed`)
-
               if (onInstanceComplete) {
                 onInstanceComplete(instanceId, routeId, {
                   totalInstances:
@@ -285,12 +258,6 @@ export default function PolylineHandler({
 
           // Update active count
           activeCountByRouteRef.current.set(routeId, currentActive + 1)
-
-          console.log(
-            `[PolylineHandler] Route ${routeId} active count after creation: ${activeCountByRouteRef.current.get(
-              routeId
-            )}`
-          )
 
           // Call external create callback
           if (onInstanceCreate) {
@@ -334,19 +301,32 @@ export default function PolylineHandler({
     ]
   )
 
-  // Setup schedulers for all routes
-  useEffect(() => {
-    if (!pluginReady || routes.length === 0) return
-
-    console.log(
-      `[PolylineHandler] Setting up schedulers for ${routes.length} routes`
-    )
-
-    // Clear existing schedulers
+  // Helper: remove every live polyline from the map and reset counters
+  const clearAllInstances = useCallback(() => {
     schedulerIntervalsRef.current.forEach((interval) => {
       clearInterval(interval)
     })
     schedulerIntervalsRef.current.clear()
+
+    routeInstancesRef.current.forEach((routeInstances) => {
+      routeInstances.forEach((polyline) => {
+        try {
+          if (polyline.removeSnake) polyline.removeSnake()
+          if (map && map.hasLayer(polyline)) map.removeLayer(polyline)
+        } catch (e) { /* ignore */ }
+      })
+    })
+    routeInstancesRef.current.clear()
+    activeCountByRouteRef.current.clear()
+  }, [map])
+
+  // Setup schedulers for all routes
+  useEffect(() => {
+    // Always clear previous instances first — this is the key fix:
+    // even when routes becomes [], we need to strip old polylines off the map.
+    clearAllInstances()
+
+    if (!pluginReady || routes.length === 0) return
 
     // Create scheduler for each route
     routes.forEach((route) => {
@@ -358,7 +338,6 @@ export default function PolylineHandler({
       }
 
       if (!routeConfig.autoStart) {
-        console.log(`[PolylineHandler] Route ${routeId}: Auto-start disabled`)
         return
       }
 
@@ -367,69 +346,30 @@ export default function PolylineHandler({
         activeCountByRouteRef.current.set(routeId, 0)
       }
 
-      console.log(
-        `[PolylineHandler] Starting scheduler for route ${routeId} with ${routeConfig.intervalSeconds}s interval`
-      )
-
       // Create first instance immediately
       setTimeout(() => createInstance(route), 100 * (routes.indexOf(route) + 1))
 
       // Setup interval
       const intervalMs = routeConfig.intervalSeconds * 1000
       const interval = setInterval(() => {
-        console.log(
-          `[PolylineHandler] Scheduler tick for route ${routeId}. Active: ${activeCountByRouteRef.current.get(
-            routeId
-          )}`
-        )
         createInstance(route)
       }, intervalMs)
 
       schedulerIntervalsRef.current.set(routeId, interval)
     })
 
-    // Cleanup
+    // Cleanup on next change / unmount
     return () => {
-      console.log("[PolylineHandler] Stopping all schedulers")
-      schedulerIntervalsRef.current.forEach((interval) => {
-        clearInterval(interval)
-      })
-      schedulerIntervalsRef.current.clear()
+      clearAllInstances()
     }
-  }, [pluginReady, routes, createInstance])
+  }, [pluginReady, routes, createInstance, clearAllInstances])
 
-  // Cleanup all instances on unmount
+  // Safety-net: full cleanup on unmount
   useEffect(() => {
     return () => {
-      console.log("[PolylineHandler] Cleaning up all instances")
-
-      schedulerIntervalsRef.current.forEach((interval) => {
-        clearInterval(interval)
-      })
-      schedulerIntervalsRef.current.clear()
-
-      routeInstancesRef.current.forEach((routeInstances, routeId) => {
-        routeInstances.forEach((polyline, instanceId) => {
-          try {
-            if (polyline.removeSnake) {
-              polyline.removeSnake()
-            }
-            if (map && map.hasLayer(polyline)) {
-              map.removeLayer(polyline)
-            }
-          } catch (error) {
-            console.error(
-              `[PolylineHandler] Cleanup error for ${instanceId}:`,
-              error
-            )
-          }
-        })
-      })
-
-      routeInstancesRef.current.clear()
-      activeCountByRouteRef.current.clear()
+      clearAllInstances()
     }
-  }, [map])
+  }, [clearAllInstances])
 
   return null
 }

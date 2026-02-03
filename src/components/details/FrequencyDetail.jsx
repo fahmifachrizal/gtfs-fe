@@ -1,4 +1,4 @@
-import { projectService } from "@/services/projectService"
+import { service } from "@/services"
 import { useUser } from "@/contexts/UserContext"
 import { toast } from "sonner"
 import { useState, useEffect } from "react"
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { DetailLayout } from "./DetailLayout"
 import { Button } from "@/components/ui/button"
 
-export function FrequencyDetail({ frequency, trips, onSave, onDelete }) {
+export function FrequencyDetail({ frequency, trips, onSave, onDelete, onClose }) {
     const { currentProject } = useUser()
     const [loading, setLoading] = useState(false)
     const [deleting, setDeleting] = useState(false)
@@ -55,9 +55,9 @@ export function FrequencyDetail({ frequency, trips, onSave, onDelete }) {
 
             let result
             if (frequency.isNew) {
-                result = await projectService.createFrequency(currentProject.id, frequencyData)
+                result = await service.frequencies.createFrequency(currentProject.id, frequencyData)
             } else {
-                result = await projectService.updateFrequency(currentProject.id, frequency.frequency_id, frequencyData)
+                result = await service.frequencies.updateFrequency(currentProject.id, frequency.frequency_id, frequencyData)
             }
 
             if (result.success) {
@@ -78,7 +78,7 @@ export function FrequencyDetail({ frequency, trips, onSave, onDelete }) {
 
         setDeleting(true)
         try {
-            const result = await projectService.deleteFrequency(currentProject.id, frequency.frequency_id)
+            const result = await service.frequencies.deleteFrequency(currentProject.id, frequency.frequency_id)
             if (result.success) {
                 toast.success(`Frequency deleted successfully`)
                 if (onDelete) onDelete(frequency)
@@ -98,6 +98,7 @@ export function FrequencyDetail({ frequency, trips, onSave, onDelete }) {
             label={frequency.isNew ? "New Frequency" : "Frequency Details"}
             title={frequency.isNew ? "Create Frequency" : `${formData.trip_id}`}
             onSave={handleSubmit}
+            onClose={onClose}
             loading={loading}
             actions={
                 !frequency.isNew && (

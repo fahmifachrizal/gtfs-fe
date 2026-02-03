@@ -1,25 +1,26 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import { ThemeProvider } from "next-themes";
-import { UserProvider } from './contexts/UserContext';
-import HomeLayout from './layouts/HomeLayout';
-import EditorLayout from './layouts/EditorLayout';
-import Editor from './pages/Editor'; // This is the Projects List
-import EditorWelcome from './pages/editor/EditorWelcome';
-import AgencyPage from './pages/editor/AgencyPage';
-import StopsPage from './pages/editor/StopsPage';
-import RoutesPage from './pages/editor/RoutesPage';
-import ShapesPage from './pages/editor/ShapesPage';
-import TripsPage from './pages/editor/TripsPage';
-import CalendarPage from './pages/editor/CalendarPage';
-import StopTimesPage from './pages/editor/StopTimesPage';
-import FrequenciesPage from './pages/editor/FrequenciesPage';
-import TransfersPage from './pages/editor/TransfersPage';
-import FaresPage from './pages/editor/FaresPage';
-import PlaceholderPage from './pages/editor/PlaceholderPage';
-import { Toaster } from './components/ui/sonner';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
+import Home from "./pages/Home"
+import Login from "./pages/Login"
+import Register from "./pages/Register"
+import { ThemeProvider } from "next-themes"
+import { UserProvider } from "./contexts/UserContext"
+import { EditorProvider } from "./contexts/EditorContext"
+import HomeLayout from "./layouts/HomeLayout"
+import EditorLayout from "./layouts/EditorLayout"
+import Editor from "./pages/Editor" // This is the Projects List
+import EditorWelcome from "./pages/editor/EditorWelcome"
+import AgencyPage from "./pages/editor/AgencyPage"
+import StopsPage from "./pages/editor/StopsPage"
+import RoutesPage from "./pages/editor/RoutesPage"
+import ShapesPage from "./pages/editor/ShapesPage"
+import TripsPage from "./pages/editor/TripsPage"
+import CalendarPage from "./pages/editor/CalendarPage"
+import StopTimesPage from "./pages/editor/StopTimesPage"
+import FrequenciesPage from "./pages/editor/FrequenciesPage"
+import TransfersPage from "./pages/editor/TransfersPage"
+import FaresPage from "./pages/editor/FaresPage"
+import Playground from "./pages/Playground"
+import { Toaster } from "./components/ui/sonner"
 
 function App() {
   return (
@@ -33,6 +34,11 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/projects" element={<Editor />} />
+              <Route path="/playground" element={
+                <EditorProvider>
+                  <Playground />
+                </EditorProvider>
+              } />
             </Route>
 
             {/* Editor Layout - Context Based Routing */}
@@ -48,16 +54,13 @@ function App() {
               <Route path="frequencies" element={<FrequenciesPage />} />
               <Route path="transfers" element={<TransfersPage />} />
               <Route path="fares" element={<FaresPage />} />
-              <Route path="*" element={<PlaceholderPage />} />
             </Route>
-
           </Routes>
         </Router>
         <Toaster position="bottom-right" />
       </UserProvider>
     </ThemeProvider>
-  );
+  )
 }
 
-export default App;
-
+export default App

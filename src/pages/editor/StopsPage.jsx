@@ -45,6 +45,7 @@ export default function StopsPage() {
   useEffect(() => {
     if (selectedData && selectedData.stop_id) {
       setPreviewStop(null) // Clear any previous preview
+      const title = selectedData.stop_name || 'Stop Details'
       setDetailView(
         <StopDetail
           stop={selectedData}
@@ -53,7 +54,8 @@ export default function StopsPage() {
             handleSaveStop(saved)
             setPreviewStop(null)
           }}
-        />
+        />,
+        title
       )
     }
   }, [selectedData, setDetailView])
@@ -204,6 +206,7 @@ export default function StopsPage() {
       stop_desc: "",
       // Add other default fields if necessary
     }
+    const title = "New Stop"
     setDetailView(
       <StopDetail
         stop={newStop}
@@ -212,7 +215,8 @@ export default function StopsPage() {
           setPreviewStop(null)
         }}
         onPreview={handlePreview}
-      />
+      />,
+      title
     )
   }
 

@@ -16,6 +16,7 @@ import {
   ArrowRightLeft,
   Check,
   Lock,
+  ExternalLink,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
@@ -75,11 +76,20 @@ const editorPages = [
     required: true,
   },
   {
+    title: "Fares",
+    href: "/editor/fares",
+    icon: CreditCard,
+    description: "Fare rules & pricing",
+    step: 7,
+    id: "fares",
+    required: false,
+  },
+  {
     title: "Trips",
     href: "/editor/trips",
     icon: Clock,
     description: "Vehicle trips & schedules",
-    step: 7,
+    step: 8,
     id: "trips",
     required: true,
   },
@@ -88,7 +98,7 @@ const editorPages = [
     href: "/editor/stop-times",
     icon: Database,
     description: "Trip timing data",
-    step: 8,
+    step: 9,
     id: "stop-times",
     required: true,
   },
@@ -97,7 +107,7 @@ const editorPages = [
     href: "/editor/frequencies",
     icon: Radio,
     description: "Headway-based service",
-    step: 9,
+    step: 10,
     id: "frequencies",
     required: false,
   },
@@ -106,17 +116,8 @@ const editorPages = [
     href: "/editor/transfers",
     icon: ArrowRightLeft,
     description: "Transfer rules between stops",
-    step: 10,
-    id: "transfers",
-    required: false,
-  },
-  {
-    title: "Fares",
-    href: "/editor/fares",
-    icon: CreditCard,
-    description: "Fare rules & pricing",
     step: 11,
-    id: "fares",
+    id: "transfers",
     required: false,
   },
 ]
@@ -176,7 +177,8 @@ export function EditorMenu() {
   return (
     <nav className="border-t border-border/40 bg-linear-to-r from-background/50 to-background/30 backdrop-blur-sm">
       <div className="px-6 py-3">
-        <div className="flex items-center space-x-2 overflow-x-auto scrollbar-hide">
+        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center space-x-2 overflow-x-auto scrollbar-hide flex-1">
           {editorPages.map((page, index) => {
             const Icon = page.icon
             const stepState = getStepState(page, index)
@@ -245,6 +247,19 @@ export function EditorMenu() {
             )
           })}
         </div>
+
+        {/* View on Playground Button */}
+        <Link to="/playground" className="">
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0 text-xs font-medium"
+        >
+          <ExternalLink className="h-3 w-3 mr-1.5" />
+          View in Playground
+        </Button>
+        </Link>
+      </div>
       </div>
     </nav>
   )

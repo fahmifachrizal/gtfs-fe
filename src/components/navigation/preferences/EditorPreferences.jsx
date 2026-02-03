@@ -5,16 +5,15 @@ import { Save, Download, Trash2 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useUser } from "@/contexts/UserContext"
 import { Button } from "@/components/ui/button"
+import { ThemeToggle } from "../../ThemeToggle"
 
 export function EditorPreferences({ onExport, onReset, loading = false }) {
-  const { theme } = useTheme()
+  const { theme, setTheme } = useTheme()
   const { currentProject } = useUser()
-  const [isDarkMode, setIsDarkMode] = useState(theme === "dark")
 
   const switchThemeMode = () => {
     const newTheme = theme === "dark" ? "light" : "dark"
-    theme.setTheme && theme.setTheme(newTheme)
-    setIsDarkMode(newTheme === "dark")
+    setTheme(newTheme)
   }
 
   return (
@@ -40,24 +39,7 @@ export function EditorPreferences({ onExport, onReset, loading = false }) {
         Save
       </Button>
 
-      <Button
-        variant="destructive"
-        size="sm"
-        onClick={onReset}
-        disabled={loading || !currentProject}
-        className="hidden md:flex h-7 px-2 text-xs">
-        <Trash2 className="w-3 h-3 mr-1" />
-        {loading ? "Resetting..." : "Reset"}
-      </Button>
-
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={switchThemeMode}
-        title="Toggle theme"
-        className="h-7 w-7 p-0">
-        🌓
-      </Button>
+      <ThemeToggle />
     </div>
   )
 }

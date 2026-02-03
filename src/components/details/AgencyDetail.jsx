@@ -1,4 +1,4 @@
-import { projectService } from "@/services/projectService"
+import { service } from "@/services"
 import { useUser } from "@/contexts/UserContext"
 import { toast } from "sonner"
 import { useState, useEffect } from "react"
@@ -91,9 +91,9 @@ export function AgencyDetail({ agency, onSave, onDelete }) {
 
             let result
             if (agency.isNew) {
-                result = await projectService.createAgency(currentProject.id, agencyData)
+                result = await service.agencies.createAgency(currentProject.id, agencyData)
             } else {
-                result = await projectService.updateAgency(currentProject.id, agency.agency_id, agencyData)
+                result = await service.agencies.updateAgency(currentProject.id, agency.agency_id, agencyData)
             }
 
             if (result.success) {
@@ -114,7 +114,7 @@ export function AgencyDetail({ agency, onSave, onDelete }) {
 
         setDeleting(true)
         try {
-            const result = await projectService.deleteAgency(currentProject.id, agency.agency_id)
+            const result = await service.agencies.deleteAgency(currentProject.id, agency.agency_id)
             if (result.success) {
                 toast.success(`Agency "${formData.agency_name}" deleted`)
                 if (onDelete) onDelete(agency)

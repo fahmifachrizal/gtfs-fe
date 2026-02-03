@@ -6,7 +6,7 @@ import { columns } from "@/components/gtfs-table/columns.jsx"
 import { Button } from "@/components/ui/button"
 import { Plus, ArrowRightLeft, AlertCircle, Zap } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
-import { projectService } from "@/services/projectService"
+import { service } from "@/services"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
 import { TransferDetail } from "@/components/details/TransferDetail"
@@ -14,7 +14,7 @@ import { useEditorContext } from "@/contexts/EditorContext"
 
 export default function TransfersPage() {
     const { currentProject, isAuthenticated } = useUser()
-    const { setDetailView, selectedData, handleSelectData, fetchAllCounts } = useEditorContext()
+    const { setDetailView, closeDetail, selectedData, handleSelectData, fetchAllCounts } = useEditorContext()
 
     const [transfers, setTransfers] = useState([])
     const [stops, setStops] = useState([])
@@ -35,10 +35,11 @@ export default function TransfersPage() {
                     onDelete={(deleted) => {
                         handleDeleteTransfer(deleted)
                     }}
+                    onClose={closeDetail}
                 />
             )
         }
-    }, [selectedData, setDetailView, stops])
+    }, [selectedData, setDetailView, closeDetail, stops])
 
     const fetchTransfers = async () => {
         if (isLoading || !currentProject) return
@@ -48,8 +49,8 @@ export default function TransfersPage() {
 
         try {
             const [transferResponse, stopResponse] = await Promise.all([
-                projectService.getTransfers(currentProject.id),
-                projectService.getStops(currentProject.id)
+                service.transfers.getTransfers(currentProject.id),
+                service.stops.getStops(currentProject.id)
             ])
 
             if (transferResponse.success && transferResponse.transfers) {
@@ -113,6 +114,7 @@ export default function TransfersPage() {
                 onSave={(saved) => {
                     handleSaveTransfer(saved)
                 }}
+                onClose={closeDetail}
             />
         )
     }
@@ -129,7 +131,7 @@ export default function TransfersPage() {
 
         try {
             setIsLoading(true)
-            const result = await projectService.generateTransfersForNearbyStops(currentProject.id, {
+            const result = await service.transfers.generateTransfersForNearbyStops(currentProject.id, {
                 max_distance_meters: 200,
                 default_transfer_type: 2,
                 default_min_transfer_time: 300
@@ -180,6 +182,13 @@ export default function TransfersPage() {
                     <AlertDescription>{error}</AlertDescription>
                 </Alert>
             )}
+
+            <Alert className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                    <span className="font-semibold">Under Development:</span> This feature is currently being enhanced. Basic functionality is available, but some features may be incomplete.
+                </AlertDescription>
+            </Alert>
 
             <div className="mt-6">
                 <DataTable

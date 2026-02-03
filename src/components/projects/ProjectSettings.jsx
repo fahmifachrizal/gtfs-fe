@@ -36,7 +36,7 @@ export const ProjectSettings = ({ project, onUpdate, onDelete }) => {
     const handleSaveSettings = async () => {
         setIsSaving(true);
         try {
-            const updated = await projectService.update(project.id, { name, description });
+            const updated = await service.projects.update(project.id, { name, description });
             onUpdate(updated);
             alert("Project settings saved.");
         } catch (error) {
@@ -51,7 +51,7 @@ export const ProjectSettings = ({ project, onUpdate, onDelete }) => {
         if (!inviteEmail) return;
         setIsInviting(true);
         try {
-            await projectService.share(project.id, inviteEmail, inviteRole);
+            await service.projects.share(project.id, inviteEmail, inviteRole);
             setInviteEmail("");
             // Refresh project data to show new member - usually ideally strictly handled by parent re-fetch
             // But we can call onUpdate if we pass a refresh function, for now prompt parent to refresh
@@ -68,7 +68,7 @@ export const ProjectSettings = ({ project, onUpdate, onDelete }) => {
     const handleUnshare = async (userId) => {
         if (!window.confirm("Remove this user from the project?")) return;
         try {
-            await projectService.unshare(project.id, userId);
+            await service.projects.unshare(project.id, userId);
             onUpdate({ ...project }); // Trigger refresh
         } catch (error) {
              console.error("Failed to unshare:", error);

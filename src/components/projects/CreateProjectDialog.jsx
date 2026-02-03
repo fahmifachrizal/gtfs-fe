@@ -103,13 +103,13 @@ export function CreateProjectDialog({ onProjectCreated }) {
                 description: "Auto-generated debug project",
                 type: "import"
             };
-            const newProject = await projectService.create(payload);
+            const newProject = await service.projects.create(payload);
 
             // 3. Upload File
             setUploadPhase('processing');
             console.log("Starting Debug GTFS import for project:", newProject.id);
             
-            await projectService.importGTFS(newProject.id, file);
+            await service.projects.importGTFS(newProject.id, file);
             
             setUploadPhase('success');
             toast.success("Debug import successful!");
@@ -149,7 +149,7 @@ export function CreateProjectDialog({ onProjectCreated }) {
         type: activeTab,
       };
       
-      let createdProject = await projectService.create(payload);
+      let createdProject = await service.projects.create(payload);
       
       // If blank/example, we still want to show meaningful success feedback
       if (activeTab === 'import' && formData.file && createdProject && createdProject.id) {
@@ -160,7 +160,7 @@ export function CreateProjectDialog({ onProjectCreated }) {
           setUploadPhase('processing');
           
           try {
-             await projectService.importGTFS(createdProject.id, formData.file);
+             await service.projects.importGTFS(createdProject.id, formData.file);
              setUploadPhase('success');
              toast.success("GTFS data imported successfully");
              // DO NOT CLOSE DIALOG automatically

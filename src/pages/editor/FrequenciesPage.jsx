@@ -6,7 +6,7 @@ import { columns } from "@/components/gtfs-table/columns.jsx"
 import { Button } from "@/components/ui/button"
 import { Plus, Radio, AlertCircle, Zap } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
-import { projectService } from "@/services/projectService"
+import { service } from "@/services"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
 import { FrequencyDetail } from "@/components/details/FrequencyDetail"
@@ -14,7 +14,7 @@ import { useEditorContext } from "@/contexts/EditorContext"
 
 export default function FrequenciesPage() {
     const { currentProject, isAuthenticated } = useUser()
-    const { setDetailView, selectedData, handleSelectData, fetchAllCounts } = useEditorContext()
+    const { setDetailView, closeDetail, selectedData, handleSelectData, fetchAllCounts } = useEditorContext()
 
     const [frequencies, setFrequencies] = useState([])
     const [trips, setTrips] = useState([])
@@ -35,10 +35,11 @@ export default function FrequenciesPage() {
                     onDelete={(deleted) => {
                         handleDeleteFrequency(deleted)
                     }}
+                    onClose={closeDetail}
                 />
             )
         }
-    }, [selectedData, setDetailView, trips])
+    }, [selectedData, setDetailView, closeDetail, trips])
 
     const fetchFrequencies = async () => {
         if (isLoading || !currentProject) return
@@ -48,8 +49,8 @@ export default function FrequenciesPage() {
 
         try {
             const [freqResponse, tripResponse] = await Promise.all([
-                projectService.getFrequencies(currentProject.id),
-                projectService.getTrips(currentProject.id)
+                service.frequencies.getFrequencies(currentProject.id),
+                service.trips.getTrips(currentProject.id)
             ])
 
             if (freqResponse.success && freqResponse.frequencies) {
@@ -114,6 +115,7 @@ export default function FrequenciesPage() {
                 onSave={(saved) => {
                     handleSaveFrequency(saved)
                 }}
+                onClose={closeDetail}
             />
         )
     }
@@ -131,7 +133,7 @@ export default function FrequenciesPage() {
 
         try {
             setIsLoading(true)
-            const result = await projectService.generateDefaultFrequencies(currentProject.id, tripId)
+            const result = await service.frequencies.generateDefaultFrequencies(currentProject.id, tripId)
             if (result.success) {
                 await fetchFrequencies()
                 toast.success("Default frequencies generated successfully")
@@ -178,6 +180,13 @@ export default function FrequenciesPage() {
                     <AlertDescription>{error}</AlertDescription>
                 </Alert>
             )}
+
+            <Alert className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                    <span className="font-semibold">Under Development:</span> This feature is currently being enhanced. Basic functionality is available, but some features may be incomplete.
+                </AlertDescription>
+            </Alert>
 
             <div className="mt-6">
                 <DataTable

@@ -62,22 +62,26 @@ export default function AgencyPage() {
             agency_timezone: "Asia/Jakarta",
             agency_lang: "en",
         }
+        const title = "New Agency"
         setDetailView(
             <AgencyDetail
                 agency={newAgency}
                 onSave={handleSaveAgency}
                 onDelete={handleDeleteAgency}
-            />
+            />,
+            title
         )
     }
 
     const handleEditAgency = (agency) => {
+        const title = agency.agency_name || 'Agency Details'
         setDetailView(
             <AgencyDetail
                 agency={agency}
                 onSave={handleSaveAgency}
                 onDelete={handleDeleteAgency}
-            />
+            />,
+            title
         )
     }
 
@@ -135,7 +139,7 @@ export default function AgencyPage() {
             {isLoading && !hasAgencies ? (
                 <div className="text-center py-8 text-muted-foreground">Loading agencies...</div>
             ) : hasAgencies ? (
-                <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                <div className="space-y-3">
                     {agencies.map((agency) => (
                         <Card
                             key={agency.agency_id}

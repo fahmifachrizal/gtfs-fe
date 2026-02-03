@@ -1,9 +1,8 @@
-
 import React, { useEffect, useState, useCallback, useRef } from "react"
 import { Route, Plus, Search, ChevronLeft, ChevronRight, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import RouteItem from "@/components/route-item"
+import RouteItem from "@/components/RouteItem"
 import { RouteDetail } from "@/components/details/RouteDetail"
 import { useEditorContext } from "@/contexts/EditorContext"
 import { useUser } from "@/contexts/UserContext"
@@ -472,4 +471,3 @@ export default function RoutesPage() {
     </div>
   )
 }
-

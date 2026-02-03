@@ -1,4 +1,4 @@
-import { projectService } from "@/services/projectService"
+import { service } from "@/services"
 import { useUser } from "@/contexts/UserContext"
 import { useEditorContext } from "@/contexts/EditorContext"
 import { toast } from "sonner"
@@ -103,9 +103,9 @@ export function StopDetail({ stop, onSave, onPreview }) {
 
       let result
       if (stop.isNew) {
-        result = await projectService.createStop(currentProject.id, stopData)
+        result = await service.stops.createStop(currentProject.id, stopData)
       } else {
-        result = await projectService.updateStop(currentProject.id, stop.stop_id, stopData)
+        result = await service.stops.updateStop(currentProject.id, stop.stop_id, stopData)
       }
 
       if (result.success) {
