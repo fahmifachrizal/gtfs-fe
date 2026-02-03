@@ -10,6 +10,13 @@ import { useUser } from "@/contexts/UserContext"
 import { useApiRequest } from "@/hooks/useApiRequest"
 import { toast } from "sonner"
 
+const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB – must match backend express.json limit
+
+const formatBytes = (bytes) => {
+    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+    return `${(bytes / 1024).toFixed(1)} KB`
+}
+
 const FileUploader = ({
     onFileUpload,
     projectName: externalProjectName = "",
@@ -183,12 +190,23 @@ const FileUploader = ({
         e.preventDefault()
         setDragOver(false)
         const file = Array.from(e.dataTransfer.files).find((f) => f.name.endsWith(".zip"))
-        if (file) handleFilePreview(file)
+        if (!file) return
+        if (file.size > MAX_FILE_SIZE) {
+            toast.error(`File too large: ${formatBytes(file.size)}. Maximum allowed is ${formatBytes(MAX_FILE_SIZE)}.`)
+            return
+        }
+        handleFilePreview(file)
     }
 
     const handleFileSelect = (e) => {
         const file = e.target.files[0]
-        if (file && file.name.endsWith(".zip")) handleFilePreview(file)
+        if (!file || !file.name.endsWith(".zip")) return
+        if (file.size > MAX_FILE_SIZE) {
+            toast.error(`File too large: ${formatBytes(file.size)}. Maximum allowed is ${formatBytes(MAX_FILE_SIZE)}.`)
+            if (inputRef.current) inputRef.current.value = ""
+            return
+        }
+        handleFilePreview(file)
     }
 
     const resetUpload = () => {
