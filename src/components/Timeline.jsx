@@ -61,9 +61,9 @@ export default function Timeline({
 
   return (
     <div className="w-full max-w-4xl">
-      <Card className="bg-black/10 py-0 backdrop-blur-sm border-white/10 shadow-2xl">
+      <Card className="bg-background/95 backdrop-blur-md py-0 border-border/50 shadow-xl">
         <CardHeader className="p-4 pb-2">
-          <CardTitle className="flex items-center justify-between text-white">
+          <CardTitle className="flex items-center justify-between text-foreground">
             <span className="text-xl font-mono font-normal">
               Bus Route Timeline
             </span>
@@ -73,7 +73,7 @@ export default function Timeline({
                 variant="ghost"
                 size="icon"
                 onClick={handlePlayPause}
-                className="h-8 w-8 bg-white/10 hover:bg-white/20 border-white/20 text-white">
+                className="h-8 w-8 bg-foreground/10 hover:bg-foreground/20 border-border text-foreground">
                 {isPlaying ? (
                   <Pause className="h-4 w-4" />
                 ) : (
@@ -84,7 +84,7 @@ export default function Timeline({
               {/* Current Time */}
               <div
                 onClick={reset}
-                className="w-32 text-3xl font-mono font-normal text-white tracking-wider text-center cursor-pointer select-none hover:bg-white/10 rounded px-2 py-1 transition-colors">
+                className="w-32 text-3xl font-mono font-normal text-foreground tracking-wider text-center cursor-pointer select-none hover:bg-foreground/10 rounded px-2 py-1 transition-colors">
                 {formatTime(currentTime)}
               </div>
 
@@ -92,7 +92,7 @@ export default function Timeline({
               <Button
                 variant="ghost"
                 onClick={cycleSpeed}
-                className="h-8 w-8 bg-white/10 hover:bg-white/20 border-white/20 text-white font-normal px-3 py-1 text-sm">
+                className="h-8 w-8 bg-foreground/10 hover:bg-foreground/20 border-border text-foreground font-normal px-3 py-1 text-sm">
                 {speed}x
               </Button>
             </div>
@@ -114,7 +114,7 @@ export default function Timeline({
                 return (
                   <div
                     key={`yesterday-${i}`}
-                    className={`absolute w-0.5 bg-white/5 ${
+                    className={`absolute w-0.5 bg-foreground/5 ${
                       isHourMark ? "h-4" : "h-2"
                     } rounded-full`}
                     style={{
@@ -140,11 +140,11 @@ export default function Timeline({
                     className={`absolute ${
                       isHourMark
                         ? isNightTime
-                          ? "w-0.5 h-4 bg-white/50" // Darker shade for night time hour marks
-                          : "w-0.5 h-4 bg-white/80" // Lighter shade for daytime hour marks
+                          ? "w-0.5 h-4 bg-foreground/50" // Darker shade for night time hour marks
+                          : "w-0.5 h-4 bg-foreground/80" // Lighter shade for daytime hour marks
                         : isNightTime
-                        ? "w-0.5 h-2 bg-white/20" // Darker shade for night time 10 minutes marks
-                        : "w-0.5 h-2 bg-white/50" // Lighter shade for daytime 10 minutes marks
+                        ? "w-0.5 h-2 bg-foreground/20" // Darker shade for night time 10 minutes marks
+                        : "w-0.5 h-2 bg-foreground/50" // Lighter shade for daytime 10 minutes marks
                     } rounded-full`}
                     style={{
                       left: `${position}%`,
@@ -164,7 +164,7 @@ export default function Timeline({
                 return (
                   <div
                     key={`tomorrow-${i}`}
-                    className={`absolute w-0.5 bg-white/5 ${
+                    className={`absolute w-0.5 bg-foreground/5 ${
                       isHourMark ? "h-4" : "h-2"
                     } rounded-full`}
                     style={{
@@ -199,8 +199,8 @@ export default function Timeline({
                   <div
                     className={`text-xs font-mono font-normal text-center ${
                       hour >= 6 && hour <= 18
-                        ? "text-white/80"
-                        : "text-white/40"
+                        ? "text-foreground/80"
+                        : "text-foreground/40"
                     }`}>
                     {hour.toString().padStart(2, "0")}:00
                   </div>

@@ -317,7 +317,7 @@ export default function Playground() {
 
         {/* Timeline bar */}
         {currentProject && selectedTrip && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-1000">
+          <div className="absolute bottom-4 left-0 right-0 z-1000 flex justify-center">
             <Timeline
               isPlaying={isPlaying}
               onPlayPause={handlePlayPause}
